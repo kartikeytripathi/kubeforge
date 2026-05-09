@@ -2,11 +2,13 @@
   "name": "kubeforge",
   "version": "1.0.0",
   "description": "KubeForge — hands-on Kubernetes & EKS learning webapp",
+  "packageManager": "pnpm@11.0.9",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "postinstall": "prisma generate",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
@@ -17,13 +19,6 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "devEngines": {
-    "packageManager": {
-      "name": "pnpm",
-      "version": "^11.0.9",
-      "onFail": "download"
-    }
-  },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",
     "@prisma/client": "^5.22.0",
