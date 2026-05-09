@@ -14,12 +14,14 @@ pnpm install
 
 # Set up the database
 pnpm db:generate
-pnpm db:migrate
+pnpm db:migrate   # creates prisma/dev.db — enter a migration name when prompted
 
 # Run the dev server
 pnpm dev
 # → http://localhost:3000
 ```
+
+Jump straight into a lab: **http://localhost:3000/lesson/a1**
 
 ## Scripts
 
@@ -38,48 +40,82 @@ pnpm dev
 
 | Layer | Choice |
 |---|---|
-| Framework | Next.js 14 App Router + TypeScript |
-| Styling | Tailwind CSS (v4) |
-| State | Zustand |
-| Database | SQLite via Prisma |
-| Testing | Vitest + Playwright |
+| Framework | Next.js 14 App Router + TypeScript 5 |
+| Styling | Tailwind CSS v4 + custom dark theme |
+| Code editor | Monaco Editor (`@monaco-editor/react`) |
+| Cluster diagrams | React Flow (`reactflow`) |
+| YAML parsing | `js-yaml` |
+| Lesson content | MDX via `next-mdx-remote/rsc` |
+| State | Zustand (with `persist` for EKS toggle) |
+| Database | SQLite via Prisma 5 |
+| Testing | Vitest (unit) + Playwright (e2e) |
+| Package manager | pnpm |
 
 ## Repo Layout
 
 ```
 kubeforge/
-├── app/                      # Next.js App Router pages + API routes
-├── components/               # Reusable UI (AppShell, Sidebar, TopNav, EksToggle…)
+├── app/
+│   ├── lesson/[id]/          # Lab pages (server-rendered, force-dynamic)
+│   ├── curriculum/           # Phase/lesson browser
+│   ├── progress/             # Heatmap + readiness gauges
+│   └── settings/             # Keyboard shortcuts, cluster options
+├── components/
+│   ├── LabPane.tsx           # Three-panel lab layout
+│   ├── YamlEditor.tsx        # Monaco editor (YAML mode)
+│   ├── ClusterCanvas.tsx     # React Flow cluster visualisation
+│   ├── VerifyPanel.tsx       # Objectives checklist + hints
+│   ├── AppShell.tsx          # Top nav + sidebar wrapper
+│   └── EksToggle.tsx         # Vanilla K8s / EKS mode switch
 ├── lib/
-│   ├── simulator/            # In-memory K8s cluster simulator (Phase 1+)
-│   ├── verifiers/            # Per-lab assertion functions (Phase 1+)
-│   ├── schemas/              # Bundled K8s OpenAPI schemas (Phase 1+)
-│   └── curriculum/           # Lesson + lab content helpers (Phase 2+)
+│   ├── simulator/            # In-memory K8s cluster state machine
+│   │   ├── index.ts          # ClusterSimulator class + apply/tick/query API
+│   │   ├── reconciler.ts     # Deployment→RS→Pod, scheduling, crash detection
+│   │   ├── types.ts          # K8s object types (Pod, Deployment, Service…)
+│   │   └── utils.ts          # Label matching, crash detection, uid helpers
+│   ├── verifiers/            # Per-lab assertion functions
+│   │   ├── types.ts          # VerifierFn, ObjectiveResult, LabDefinition
+│   │   ├── a1.ts             # Fix CrashLoopBackOff verifier
+│   │   ├── a2.ts             # Rolling update verifier
+│   │   └── a3.ts             # Service selector verifier
+│   └── store.ts              # Zustand app store (EKS mode toggle)
+├── hooks/
+│   └── useSimulator.ts       # React hook — simulator lifecycle + auto-tick
 ├── content/
-│   ├── lessons/              # MDX files, one per concept (Phase 1+)
-│   └── labs/                 # JSON lab definitions (Phase 1+)
-├── prisma/                   # Prisma schema + migrations
+│   ├── lessons/              # MDX concept text (one per lab, ≤400 words)
+│   └── labs/                 # JSON lab definitions (starter YAML, objectives, hints)
+├── prisma/
+│   ├── schema.prisma         # User, LabAttempt, LabCompletion, Streak
+│   └── migrations/
 └── tests/
-    ├── unit/                 # Vitest unit tests
-    └── e2e/                  # Playwright e2e tests
+    ├── unit/                 # Vitest — simulator + store tests
+    └── e2e/                  # Playwright — phase smoke tests
 ```
 
 ## Phased Build Plan
 
 | Phase | Goal | Status |
 |---|---|---|
-| **0** | Scaffolding — empty app boots, dark mode, two placeholder pages | ✅ Complete |
-| **1** | Simulator + first 3 labs (A1, A2, A3) | 🔒 Pending |
-| **2** | Curriculum engine + Phase A complete | 🔒 Pending |
-| **3** | Phase B — Production K8s + boss-lab framework | 🔒 Pending |
-| **4** | Real cluster mode (kind) + Phase C | 🔒 Pending |
-| **5** | EKS mode + Phase D | 🔒 Pending |
-| **6** | Polish — hints, confetti, CKA exam mode, a11y | 🔒 Pending |
+| **0** | Scaffolding — app shell, dark mode, EKS toggle, Prisma schema | ✅ Complete |
+| **1** | Simulator + labs A1, A2, A3 (CrashLoop fix, rolling update, Service wiring) | ✅ Complete |
+| **2** | Curriculum engine, progress/streaks, simulated kubectl terminal, labs A4–A8 | 🔒 Pending |
+| **3** | Phase B — Production K8s, probes, HPA, DiskPressure boss lab | 🔒 Pending |
+| **4** | Real cluster mode (`kind`) + Phase C (CRDs, webhooks, Istio, ArgoCD) | 🔒 Pending |
+| **5** | EKS mode + Phase D (Karpenter, IRSA, ALB, ECR, Fargate, capstone) | 🔒 Pending |
+| **6** | Polish — hint animations, CKA exam mode, a11y audit, Lighthouse > 95 | 🔒 Pending |
 
 See `k8s-eks-learning-webapp-prompt.md` for the full spec.
 
+## Available Labs (Phase 1)
+
+| ID | Title | Concept | Real-world incident |
+|---|---|---|---|
+| [A1](/lesson/a1) | Fix the CrashLoopBackOff | Pods, containers, restartPolicy | 🔥 Yes |
+| [A2](/lesson/a2) | Zero-downtime image rollout | ReplicaSets and Deployments | No |
+| [A3](/lesson/a3) | Wire the frontend to the backend | Services: ClusterIP, selectors | No |
+
 ## Non-Goals (v1)
 
-- No login / multi-tenancy
-- No in-app AI assistant
+- No login / multi-tenancy / SaaS scaffolding
+- No in-app AI assistant (reveal-solution button only, after 3 failures)
 - No telemetry or external API calls beyond K8s docs links
