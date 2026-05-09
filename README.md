@@ -21,7 +21,7 @@ pnpm dev
 # → http://localhost:3000
 ```
 
-Jump straight into a lab: **http://localhost:3000/lesson/a1**
+Jump straight into a lab: **https://kubeforge.vercel.app/lesson/a1**
 
 ## Scripts
 
