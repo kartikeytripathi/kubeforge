@@ -1,5 +1,5 @@
 {
-  "installCommand": "pnpm install --ignore-scripts && pnpm exec prisma generate",
+  "installCommand": "pnpm install",
   "buildCommand": "pnpm build",
   "framework": "nextjs"
 }
