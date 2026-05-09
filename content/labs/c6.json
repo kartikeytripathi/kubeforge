@@ -1,0 +1,22 @@
+{
+  "id": "c6",
+  "title": "Fix an ArgoCD Application hammering the GitHub API",
+  "difficulty": "intermediate",
+  "estimatedMinutes": 25,
+  "realWorldIncident": true,
+  "scenario": "ArgoCD is hitting GitHub API rate limits (429 Too Many Requests). The culprit: `shop-app` Application has `selfHeal: true` with a 10-second retry backoff and `prune: false` — leaving orphaned resources that keep triggering sync attempts. Fix: enable prune and set the retry backoff to 3 minutes.",
+  "hiddenSetup": [],
+  "starterYaml": "apiVersion: argoproj.io/v1alpha1\nkind: Application\nmetadata:\n  name: shop-app\n  namespace: argocd\nspec:\n  project: default\n  source:\n    repoURL: https://github.com/example/shop-app\n    targetRevision: HEAD\n    path: k8s\n  destination:\n    server: https://kubernetes.default.svc\n    namespace: default\n  syncPolicy:\n    automated:\n      prune: false\n      selfHeal: true\n    retry:\n      limit: 3\n      backoff:\n        duration: 10s\n        maxDuration: 1m\n        factor: 2\n",
+  "objectives": [
+    { "id": "app-exists",    "description": "ArgoCD Application `shop-app` exists in namespace `argocd`" },
+    { "id": "prune-on",      "description": "`syncPolicy.automated.prune` is `true`" },
+    { "id": "backoff-slow",  "description": "Retry `backoff.duration` is `3m` (not 10s)" },
+    { "id": "dest-ns",       "description": "`destination.namespace` is `default`" }
+  ],
+  "hints": [
+    { "revealAfterMs": 60000,  "text": "Two fixes: set `prune: true` (removes orphaned resources that keep drifting) and change `backoff.duration: 10s` to `3m`." },
+    { "revealAfterMs": 120000, "text": "Without prune, deleted manifest files leave resources running. ArgoCD detects drift → triggers sync → hits the API. This cycles every 10 seconds." },
+    { "revealAfterMs": 180000, "text": "Set `prune: true` and `backoff.duration: 3m`. Also consider `maxDuration: 10m` so retries spread out further." }
+  ],
+  "solution": "apiVersion: argoproj.io/v1alpha1\nkind: Application\nmetadata:\n  name: shop-app\n  namespace: argocd\nspec:\n  project: default\n  source:\n    repoURL: https://github.com/example/shop-app\n    targetRevision: HEAD\n    path: k8s\n  destination:\n    server: https://kubernetes.default.svc\n    namespace: default\n  syncPolicy:\n    automated:\n      prune: true\n      selfHeal: true\n    retry:\n      limit: 3\n      backoff:\n        duration: 3m\n        maxDuration: 10m\n        factor: 2\n"
+}

@@ -1,0 +1,58 @@
+{
+  "id": "d13",
+  "title": "ShopEKS Revival — Phase D Capstone",
+  "difficulty": "advanced",
+  "estimatedMinutes": 45,
+  "realWorldIncident": true,
+  "scenario": "🔥 ShopEKS is down. Four independent failures have stacked up:\n1. ArgoCD `targetRevision` points to a deleted branch `feature/old-checkout` — change it to `main`.\n2. The `checkout` PDB has `minAvailable: 3` but only 3 replicas exist — drain is blocked forever.\n3. The Karpenter `prod-pool` NodePool uses `WhenEmptyOrUnderutilized` consolidation, which is evicting pods every 5 minutes under load.\n4. The `orders` Deployment pulls from ECR with the wrong role annotation — it references `arn:aws:iam::123456789012:role/wrong-role` instead of `arn:aws:iam::123456789012:role/orders-ecr-pull`.\nFix all four issues.",
+  "hiddenSetup": [
+    {
+      "kind": "ConfigMap",
+      "metadata": { "name": "argocd-app-config", "namespace": "argocd" },
+      "data": {
+        "application.yaml": "targetRevision: feature/old-checkout\nrepoURL: https://github.com/shopeks/platform\npath: k8s/overlays/prod"
+      }
+    },
+    {
+      "kind": "Deployment",
+      "metadata": { "name": "checkout", "namespace": "default" },
+      "spec": {
+        "replicas": 3,
+        "selector": { "matchLabels": { "app": "checkout" } },
+        "template": {
+          "metadata": { "labels": { "app": "checkout" } },
+          "spec": { "containers": [{ "name": "checkout", "image": "123456789012.dkr.ecr.us-east-1.amazonaws.com/checkout:prod-1.2.3" }] }
+        }
+      }
+    },
+    {
+      "kind": "Deployment",
+      "metadata": {
+        "name": "orders",
+        "namespace": "default",
+        "annotations": { "eks.amazonaws.com/role-arn": "arn:aws:iam::123456789012:role/wrong-role" }
+      },
+      "spec": {
+        "replicas": 2,
+        "selector": { "matchLabels": { "app": "orders" } },
+        "template": {
+          "metadata": { "labels": { "app": "orders" } },
+          "spec": { "containers": [{ "name": "orders", "image": "123456789012.dkr.ecr.us-east-1.amazonaws.com/orders:prod-1.0.0" }] }
+        }
+      }
+    }
+  ],
+  "starterYaml": "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: argocd-app-config\n  namespace: argocd\ndata:\n  application.yaml: |\n    targetRevision: feature/old-checkout\n    repoURL: https://github.com/shopeks/platform\n    path: k8s/overlays/prod\n---\napiVersion: policy/v1\nkind: PodDisruptionBudget\nmetadata:\n  name: checkout-pdb\n  namespace: default\nspec:\n  minAvailable: 3\n  selector:\n    matchLabels:\n      app: checkout\n---\napiVersion: karpenter.sh/v1\nkind: NodePool\nmetadata:\n  name: prod-pool\nspec:\n  template:\n    spec:\n      requirements:\n        - key: karpenter.sh/capacity-type\n          operator: In\n          values: [\"on-demand\"]\n      nodeClassRef:\n        group: karpenter.k8s.aws\n        kind: EC2NodeClass\n        name: default\n  disruption:\n    consolidationPolicy: WhenEmptyOrUnderutilized\n    consolidateAfter: 5m\n---\napiVersion: v1\nkind: ServiceAccount\nmetadata:\n  name: orders-sa\n  namespace: default\n  annotations:\n    eks.amazonaws.com/role-arn: arn:aws:iam::123456789012:role/wrong-role\n",
+  "objectives": [
+    { "id": "argocd-revision",    "description": "ArgoCD ConfigMap `targetRevision` is `main`" },
+    { "id": "pdb-headroom",       "description": "PDB `checkout-pdb` has `minAvailable` < 3 (leaves drain headroom)" },
+    { "id": "karpenter-policy",   "description": "NodePool `prod-pool` uses `WhenEmpty` consolidation (not WhenEmptyOrUnderutilized)" },
+    { "id": "correct-role",       "description": "ServiceAccount `orders-sa` annotation references `orders-ecr-pull` role" }
+  ],
+  "hints": [
+    { "revealAfterMs": 90000,  "text": "Fix 1: In the ArgoCD ConfigMap, change `targetRevision: feature/old-checkout` to `targetRevision: main`.\nFix 2: The checkout PDB has 3 replicas and `minAvailable: 3` — drain can never evict any pod. Change to `minAvailable: 2`." },
+    { "revealAfterMs": 180000, "text": "Fix 3: `WhenEmptyOrUnderutilized` consolidation tries to bin-pack nodes under load, causing pod churn. Change `consolidationPolicy` to `WhenEmpty` and increase `consolidateAfter` to `30m`.\nFix 4: In the ServiceAccount, change the role ARN to `arn:aws:iam::123456789012:role/orders-ecr-pull`." },
+    { "revealAfterMs": 270000, "text": "All four fixes at a glance:\n1. ConfigMap: `targetRevision: main`\n2. PDB: `minAvailable: 2`\n3. NodePool: `consolidationPolicy: WhenEmpty`, `consolidateAfter: 30m`\n4. ServiceAccount annotation: `arn:aws:iam::123456789012:role/orders-ecr-pull`" }
+  ],
+  "solution": "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: argocd-app-config\n  namespace: argocd\ndata:\n  application.yaml: |\n    targetRevision: main\n    repoURL: https://github.com/shopeks/platform\n    path: k8s/overlays/prod\n---\napiVersion: policy/v1\nkind: PodDisruptionBudget\nmetadata:\n  name: checkout-pdb\n  namespace: default\nspec:\n  minAvailable: 2\n  selector:\n    matchLabels:\n      app: checkout\n---\napiVersion: karpenter.sh/v1\nkind: NodePool\nmetadata:\n  name: prod-pool\nspec:\n  template:\n    spec:\n      requirements:\n        - key: karpenter.sh/capacity-type\n          operator: In\n          values: [\"on-demand\"]\n      nodeClassRef:\n        group: karpenter.k8s.aws\n        kind: EC2NodeClass\n        name: default\n  disruption:\n    consolidationPolicy: WhenEmpty\n    consolidateAfter: 30m\n---\napiVersion: v1\nkind: ServiceAccount\nmetadata:\n  name: orders-sa\n  namespace: default\n  annotations:\n    eks.amazonaws.com/role-arn: arn:aws:iam::123456789012:role/orders-ecr-pull\n"
+}

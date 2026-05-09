@@ -1,0 +1,32 @@
+{
+  "id": "d2",
+  "title": "Fix ENI exhaustion with VPC CNI prefix delegation",
+  "difficulty": "intermediate",
+  "estimatedMinutes": 25,
+  "realWorldIncident": true,
+  "scenario": "New pods are stuck Pending with `failed to allocate for range 0: no IP addresses available`. Your m5.large nodes support 3 ENIs × 10 IPs = 29 pod IPs minus the primary IP = 28 usable IPs per node. With WARM_ENI_TARGET=1 you're wasting IPs on warm slots. Enable prefix delegation (`/28` prefixes per ENI) to scale pod density by 16x without adding nodes.",
+  "hiddenSetup": [
+    {
+      "kind": "ConfigMap",
+      "metadata": { "name": "amazon-vpc-cni", "namespace": "kube-system" },
+      "data": {
+        "WARM_ENI_TARGET": "1",
+        "MINIMUM_IP_TARGET": "1",
+        "ENABLE_PREFIX_DELEGATION": "false"
+      }
+    }
+  ],
+  "starterYaml": "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: amazon-vpc-cni\n  namespace: kube-system\ndata:\n  WARM_ENI_TARGET: \"1\"\n  MINIMUM_IP_TARGET: \"1\"\n  ENABLE_PREFIX_DELEGATION: \"false\"\n",
+  "objectives": [
+    { "id": "cm-exists",        "description": "ConfigMap `amazon-vpc-cni` exists in `kube-system`" },
+    { "id": "prefix-enabled",   "description": "`ENABLE_PREFIX_DELEGATION` is `\"true\"`" },
+    { "id": "warm-eni-zero",    "description": "`WARM_ENI_TARGET` is `\"0\"`" },
+    { "id": "min-ip-set",       "description": "`MINIMUM_IP_TARGET` is set to a non-zero value" }
+  ],
+  "hints": [
+    { "revealAfterMs": 60000,  "text": "Prefix delegation assigns /28 CIDR blocks (16 IPs) per ENI slot instead of individual IPs. Enable it with `ENABLE_PREFIX_DELEGATION: \"true\"`." },
+    { "revealAfterMs": 120000, "text": "Set `WARM_ENI_TARGET: \"0\"` to stop pre-warming entire ENIs (wasted IPs). Use `MINIMUM_IP_TARGET: \"10\"` to keep a warm pool of individual IPs instead." },
+    { "revealAfterMs": 180000, "text": "Three changes: `ENABLE_PREFIX_DELEGATION: \"true\"`, `WARM_ENI_TARGET: \"0\"`, `MINIMUM_IP_TARGET: \"10\"`. After applying, the aws-node DaemonSet pods need to restart to pick up the changes." }
+  ],
+  "solution": "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: amazon-vpc-cni\n  namespace: kube-system\ndata:\n  WARM_ENI_TARGET: \"0\"\n  MINIMUM_IP_TARGET: \"10\"\n  ENABLE_PREFIX_DELEGATION: \"true\"\n"
+}

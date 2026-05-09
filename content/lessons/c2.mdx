@@ -1,0 +1,70 @@
+---
+title: "Admission Webhooks"
+phase: "C"
+labId: "c2"
+---
+
+## The Admission Control Pipeline
+
+Every API request passes through a chain of admission plugins before an object is stored. The two most powerful extension points are:
+
+- **MutatingAdmissionWebhook** — can modify the object (inject sidecars, add labels, set defaults).
+- **ValidatingAdmissionWebhook** — can accept or reject the object but cannot modify it.
+
+Webhooks run after built-in admission plugins (LimitRanger, ResourceQuota, etc.) and receive an `AdmissionReview` JSON payload.
+
+## ValidatingWebhookConfiguration
+
+```yaml
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: no-latest-images
+webhooks:
+- name: no-latest.example.io
+  admissionReviewVersions: ["v1"]
+  clientConfig:
+    service:
+      name: webhook-server
+      namespace: default
+      path: /validate
+  rules:
+  - apiGroups: [""]
+    apiVersions: ["v1"]
+    resources: ["pods"]
+    operations: ["CREATE", "UPDATE"]
+  failurePolicy: Fail
+  sideEffects: None
+```
+
+Key fields:
+
+| Field | Meaning |
+|---|---|
+| `failurePolicy` | `Fail` — reject if webhook unreachable. `Ignore` — allow if unreachable (security hole). |
+| `operations` | Which verbs trigger the webhook. Miss `CREATE` and new pods slip through. |
+| `sideEffects` | `None` required for dry-run compatibility. |
+
+## Webhook Server Logic
+
+Your webhook server receives an `AdmissionReview` and returns `allowed: true/false`. For `:latest` rejection:
+
+```python
+for container in pod.spec.containers:
+    if container.image.endswith(":latest") or ":" not in container.image:
+        return deny("Use an explicit image tag — :latest is not allowed")
+return allow()
+```
+
+## OPA/Gatekeeper vs Kyverno
+
+For production, use a policy engine instead of hand-rolling a webhook server:
+
+- **OPA Gatekeeper** — rego-based policies as `ConstraintTemplate` CRDs.
+- **Kyverno** — YAML-native policies, easier for Kubernetes teams.
+
+Both install as validating + mutating webhooks behind the scenes.
+
+## Further Reading
+
+[Kubernetes Admission Controllers](https://kubernetes.io/docs/reference/access-authn-authz/admission-controllers/)

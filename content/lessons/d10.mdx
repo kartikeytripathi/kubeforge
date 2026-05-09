@@ -1,0 +1,52 @@
+---
+title: "EKS Observability"
+phase: "D"
+labId: "d10"
+---
+
+## EKS Observability Stack
+
+EKS clusters emit metrics and logs from multiple sources. The primary collection agents are:
+
+- **Amazon CloudWatch Agent** — collects host metrics (CPU, memory, disk) from EC2 nodes
+- **CloudWatch Container Insights** — enriches metrics with Kubernetes metadata (pod, namespace, node)
+- **AWS Distro for OpenTelemetry (ADOT)** — OpenTelemetry collector for traces and custom metrics
+- **Fluent Bit** — log forwarding from containers and nodes to CloudWatch Logs
+
+## CloudWatch Agent ConfigMap
+
+The CloudWatch Agent is configured via a ConfigMap in the `amazon-cloudwatch` namespace. The `cwagentconfig.json` key controls which metrics are scraped:
+
+```json
+{
+  "agent": { "metrics_collection_interval": 60 },
+  "metrics": {
+    "metrics_collected": {
+      "cpu": { "measurement": ["cpu_usage_idle", "cpu_usage_iowait"] },
+      "disk": {
+        "measurement": ["used_percent"],
+        "resources": ["*"]
+      },
+      "mem": { "measurement": ["mem_used_percent"] }
+    }
+  }
+}
+```
+
+## Kubelet Volume Metrics
+
+Kubelet exposes `kubelet_volume_stats_*` metrics (capacity, available, used) for each PVC. These are critical for disk utilization alerts. To surface them in CloudWatch Container Insights, the CloudWatch Agent must have `disk` in `metrics_collected`.
+
+Without `disk` metrics, `kubelet_volume_stats_used_bytes` never reaches CloudWatch and PVC full events go unnoticed until pods start failing.
+
+## Container Insights Namespace Metrics
+
+Container Insights publishes pre-aggregated metrics to the `/aws/containerinsights/<cluster>/performance` log group. You can query these with CloudWatch Metric Insights or build dashboards without raw Prometheus.
+
+## Prometheus + ADOT
+
+For teams already running Prometheus, ADOT can scrape Prometheus endpoints and remote-write to Amazon Managed Service for Prometheus (AMP). From AMP, Grafana can visualize metrics without managing Prometheus long-term storage.
+
+## Further Reading
+
+[Container Insights Setup](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/Container-Insights-setup-EKS-quickstart.html)

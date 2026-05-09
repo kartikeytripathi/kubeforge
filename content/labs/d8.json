@@ -1,0 +1,22 @@
+{
+  "id": "d8",
+  "title": "Configure cross-account ECR access",
+  "difficulty": "advanced",
+  "estimatedMinutes": 30,
+  "realWorldIncident": true,
+  "scenario": "🔥 A workload in AWS account 999888777666 is getting `ImagePullBackOff` pulling from ECR in account 123456789012. The ECR repository policy has no cross-account statement. Fix the policy ConfigMap to allow the workload account to pull images.",
+  "hiddenSetup": [],
+  "starterYaml": "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: ecr-cross-account-policy\n  namespace: default\ndata:\n  policy.json: |\n    {\n      \"Version\": \"2012-10-17\",\n      \"Statement\": []\n    }\n",
+  "objectives": [
+    { "id": "cm-exists",        "description": "ConfigMap `ecr-cross-account-policy` exists in `default`" },
+    { "id": "has-statement",    "description": "`policy.json` contains a cross-account IAM statement" },
+    { "id": "allows-pull",      "description": "`policy.json` allows `ecr:BatchGetImage`" },
+    { "id": "has-principal",    "description": "Principal contains a valid AWS account ARN" }
+  ],
+  "hints": [
+    { "revealAfterMs": 60000,  "text": "An ECR repository policy works like an S3 bucket policy — it grants access to AWS accounts/roles. Add a Statement that allows `ecr:BatchGetImage`, `ecr:GetDownloadUrlForLayer`, and `ecr:BatchCheckLayerAvailability` for the workload account." },
+    { "revealAfterMs": 120000, "text": "The workload account is `999888777666`. The Principal should be `arn:aws:iam::999888777666:root` to allow all IAM principals in that account." },
+    { "revealAfterMs": 180000, "text": "Add this to `Statement` in `policy.json`:\n```json\n{\n  \"Sid\": \"CrossAccountPull\",\n  \"Effect\": \"Allow\",\n  \"Principal\": { \"AWS\": \"arn:aws:iam::999888777666:root\" },\n  \"Action\": [\"ecr:GetDownloadUrlForLayer\", \"ecr:BatchGetImage\", \"ecr:BatchCheckLayerAvailability\"]\n}\n```" }
+  ],
+  "solution": "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: ecr-cross-account-policy\n  namespace: default\ndata:\n  policy.json: |\n    {\n      \"Version\": \"2012-10-17\",\n      \"Statement\": [\n        {\n          \"Sid\": \"CrossAccountPull\",\n          \"Effect\": \"Allow\",\n          \"Principal\": {\n            \"AWS\": \"arn:aws:iam::999888777666:root\"\n          },\n          \"Action\": [\n            \"ecr:GetDownloadUrlForLayer\",\n            \"ecr:BatchGetImage\",\n            \"ecr:BatchCheckLayerAvailability\"\n          ]\n        }\n      ]\n    }\n"
+}

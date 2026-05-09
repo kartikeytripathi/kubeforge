@@ -1,0 +1,22 @@
+{
+  "id": "d3",
+  "title": "Migrate from IRSA to EKS Pod Identity",
+  "difficulty": "intermediate",
+  "estimatedMinutes": 25,
+  "realWorldIncident": false,
+  "scenario": "Your `s3-reader` ServiceAccount uses IRSA via the `eks.amazonaws.com/role-arn` annotation. AWS now recommends EKS Pod Identity — it doesn't require OIDC thumbprint rotation, supports cross-account IAM without trust policy edits, and simplifies IAM role reuse. Migrate: remove the IRSA annotation and add the Pod Identity annotation.",
+  "hiddenSetup": [],
+  "starterYaml": "apiVersion: v1\nkind: ServiceAccount\nmetadata:\n  name: s3-reader\n  namespace: default\n  annotations:\n    eks.amazonaws.com/role-arn: arn:aws:iam::123456789012:role/S3ReaderRole\n",
+  "objectives": [
+    { "id": "sa-exists",          "description": "ServiceAccount `s3-reader` exists in `default`" },
+    { "id": "no-irsa",            "description": "IRSA annotation (`eks.amazonaws.com/role-arn`) is NOT present" },
+    { "id": "has-pod-identity",   "description": "Pod Identity annotation (`eks.amazonaws.com/pod-identity-association`) IS present" },
+    { "id": "arn-preserved",      "description": "IAM role ARN starts with `arn:aws:iam::`" }
+  ],
+  "hints": [
+    { "revealAfterMs": 60000,  "text": "Remove `eks.amazonaws.com/role-arn` and replace it with `eks.amazonaws.com/pod-identity-association`, keeping the same role ARN value." },
+    { "revealAfterMs": 120000, "text": "Pod Identity uses a separate EKS API (`eks:CreatePodIdentityAssociation`) to link IAM roles to service accounts — no OIDC provider needed in the trust policy." },
+    { "revealAfterMs": 180000, "text": "The annotation key changes from `eks.amazonaws.com/role-arn` to `eks.amazonaws.com/pod-identity-association`. The value (the ARN) stays the same." }
+  ],
+  "solution": "apiVersion: v1\nkind: ServiceAccount\nmetadata:\n  name: s3-reader\n  namespace: default\n  annotations:\n    eks.amazonaws.com/pod-identity-association: arn:aws:iam::123456789012:role/S3ReaderRole\n"
+}

@@ -1,0 +1,47 @@
+{
+  "id": "d7",
+  "title": "Add PodDisruptionBudgets before an EKS version upgrade",
+  "difficulty": "intermediate",
+  "estimatedMinutes": 25,
+  "realWorldIncident": false,
+  "scenario": "You're upgrading from EKS 1.28 to 1.29. Before draining nodes, you must ensure stateful workloads can tolerate the drain. The `postgres` Deployment (3 replicas) has a PDB with `maxUnavailable: 2` — too permissive (allows 2 of 3 pods down simultaneously). Fix the postgres PDB and add one for the `redis` Deployment.",
+  "hiddenSetup": [
+    {
+      "kind": "Deployment",
+      "metadata": { "name": "postgres", "namespace": "default" },
+      "spec": {
+        "replicas": 3,
+        "selector": { "matchLabels": { "app": "postgres" } },
+        "template": {
+          "metadata": { "labels": { "app": "postgres" } },
+          "spec": { "containers": [{ "name": "postgres", "image": "postgres:15" }] }
+        }
+      }
+    },
+    {
+      "kind": "Deployment",
+      "metadata": { "name": "redis", "namespace": "default" },
+      "spec": {
+        "replicas": 3,
+        "selector": { "matchLabels": { "app": "redis" } },
+        "template": {
+          "metadata": { "labels": { "app": "redis" } },
+          "spec": { "containers": [{ "name": "redis", "image": "redis:7" }] }
+        }
+      }
+    }
+  ],
+  "starterYaml": "apiVersion: policy/v1\nkind: PodDisruptionBudget\nmetadata:\n  name: postgres-pdb\n  namespace: default\nspec:\n  maxUnavailable: 2\n  selector:\n    matchLabels:\n      app: postgres\n",
+  "objectives": [
+    { "id": "postgres-pdb",    "description": "PDB `postgres-pdb` exists in `default`" },
+    { "id": "postgres-min",    "description": "`postgres-pdb` uses `minAvailable` (not maxUnavailable)" },
+    { "id": "redis-pdb",       "description": "PDB `redis-pdb` exists in `default`" },
+    { "id": "redis-selector",  "description": "`redis-pdb` selector matches `app: redis`" }
+  ],
+  "hints": [
+    { "revealAfterMs": 60000,  "text": "`maxUnavailable: 2` on a 3-replica postgres means 2 pods can go down simultaneously — that's data loss risk. Use `minAvailable: 2` to guarantee at least 2 replicas stay running." },
+    { "revealAfterMs": 120000, "text": "Remove `maxUnavailable: 2` and replace with `minAvailable: 2`. Then add a second YAML document with the redis PDB." },
+    { "revealAfterMs": 180000, "text": "Redis PDB template:\n```yaml\napiVersion: policy/v1\nkind: PodDisruptionBudget\nmetadata:\n  name: redis-pdb\n  namespace: default\nspec:\n  minAvailable: 1\n  selector:\n    matchLabels:\n      app: redis\n```" }
+  ],
+  "solution": "apiVersion: policy/v1\nkind: PodDisruptionBudget\nmetadata:\n  name: postgres-pdb\n  namespace: default\nspec:\n  minAvailable: 2\n  selector:\n    matchLabels:\n      app: postgres\n---\napiVersion: policy/v1\nkind: PodDisruptionBudget\nmetadata:\n  name: redis-pdb\n  namespace: default\nspec:\n  minAvailable: 1\n  selector:\n    matchLabels:\n      app: redis\n"
+}

@@ -1,0 +1,68 @@
+---
+title: "EKS Auto Mode"
+phase: "D"
+labId: "d6"
+---
+
+## What EKS Auto Mode Manages
+
+EKS Auto Mode is a fully managed data plane where AWS takes over:
+
+| Component | Standard EKS | EKS Auto Mode |
+|---|---|---|
+| Node provisioning | You (MNG/Karpenter) | AWS |
+| AMI updates | You | AWS (automatic) |
+| kube-proxy | You install add-on | Managed |
+| CoreDNS | You install add-on | Managed |
+| VPC CNI | You configure | Managed |
+| AWS LBC | You install | Managed |
+| Karpenter | You install + NodePools | Built-in (NodePools still needed) |
+
+You keep control over **what** runs (your workloads, NodePools, resource limits) but not **how** the infrastructure is maintained.
+
+## Built-in NodeClass
+
+Auto Mode provides a single built-in `NodeClass` called `default` in the `eks.amazonaws.com` group. Your NodePools must reference it:
+
+```yaml
+apiVersion: karpenter.sh/v1
+kind: NodePool
+metadata:
+  name: my-pool
+spec:
+  template:
+    spec:
+      nodeClassRef:
+        group: eks.amazonaws.com
+        kind: NodeClass
+        name: default        # must be "default" — no custom NodeClasses in Auto Mode
+      requirements:
+      - key: karpenter.sh/capacity-type
+        operator: In
+        values: ["on-demand"]
+```
+
+## What You Still Configure
+
+Even in Auto Mode, you control:
+
+- **NodePools** — requirements (instance types, capacity type, arch), disruption, limits.
+- **Compute sizing** — CPU/memory limits per NodePool.
+- **Workload scheduling** — pod affinity, tolerations, topology spread.
+- **Networking policies** — Security Groups for Pods (via SecurityGroupPolicy CRD).
+
+## Enabling Auto Mode
+
+Enable via the EKS API or Terraform:
+
+```bash
+aws eks update-cluster-config \
+  --name my-cluster \
+  --compute-config enabled=true,nodePools=[general-purpose],nodeRoleArn=arn:aws:iam::ACCOUNT:role/EKSAutoNodeRole
+```
+
+Or via `eksctl` cluster config with `managedNodeGroups: []` and `autoMode: enabled`.
+
+## Further Reading
+
+[EKS Auto Mode](https://docs.aws.amazon.com/eks/latest/userguide/automode.html)

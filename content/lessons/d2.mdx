@@ -1,0 +1,77 @@
+---
+title: "VPC CNI Internals"
+phase: "D"
+labId: "d2"
+---
+
+## How the AWS VPC CNI Works
+
+Unlike most CNI plugins that use an overlay network, the AWS VPC CNI gives each pod a **real VPC IP address** from the node's subnet. This enables:
+
+- Direct pod-to-pod communication without NAT.
+- Security groups at the pod level (not just node level).
+- Integration with AWS services that expect VPC routing.
+
+Each EC2 instance can attach multiple Elastic Network Interfaces (ENIs), and each ENI can hold multiple private IP addresses. The aws-node DaemonSet pre-warms IP addresses so pods can start instantly.
+
+## IP Address Limits per Instance
+
+```
+Max pods per node = (ENIs - 1) × (IPs per ENI - 1) + 2
+```
+
+For m5.large (3 ENIs, 10 IPs each):
+```
+(3 - 1) × (10 - 1) + 2 = 20 pods
+```
+
+This is the default limit. It's lower than you'd expect because the primary IP on each ENI is reserved for ENI attachment, and the primary ENI's primary IP is the node IP.
+
+## Prefix Delegation
+
+Prefix delegation assigns `/28` CIDR blocks (16 IPs) to each ENI slot instead of individual IPs. This dramatically increases pod density:
+
+```
+With prefix delegation: 3 ENIs × 16 IPs/prefix × some ENI slots = hundreds of IPs
+```
+
+Enable via the `amazon-vpc-cni` ConfigMap:
+
+```yaml
+data:
+  ENABLE_PREFIX_DELEGATION: "true"
+  WARM_PREFIX_TARGET: "1"
+  WARM_IP_TARGET: "5"
+  MINIMUM_IP_TARGET: "10"
+```
+
+## Warm IP Targets
+
+| Variable | Purpose |
+|---|---|
+| `WARM_ENI_TARGET` | Pre-warm N complete ENIs (expensive in IP space) |
+| `MINIMUM_IP_TARGET` | Always maintain at least N warm IPs |
+| `WARM_IP_TARGET` | Keep N IPs above the current pod count |
+
+Setting `WARM_ENI_TARGET=0` and using `MINIMUM_IP_TARGET` instead is more IP-efficient.
+
+## Security Groups for Pods
+
+```yaml
+apiVersion: vpcresources.k8s.aws/v1beta1
+kind: SecurityGroupPolicy
+metadata:
+  name: payments-sg
+  namespace: payments
+spec:
+  podSelector:
+    matchLabels:
+      app: payment-api
+  securityGroups:
+    groupIds:
+    - sg-0abc123def456
+```
+
+## Further Reading
+
+[EKS VPC CNI](https://docs.aws.amazon.com/eks/latest/userguide/managing-vpc-cni.html)

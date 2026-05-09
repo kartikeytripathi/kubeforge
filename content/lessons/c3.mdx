@@ -1,0 +1,72 @@
+---
+title: "Scheduler Internals and Scheduling Framework"
+phase: "C"
+labId: "c3"
+---
+
+## How the Scheduler Works
+
+The Kubernetes scheduler watches for unbound Pods (pods with no `.spec.nodeName`) and runs them through a **scheduling cycle** to pick the best node, then a **binding cycle** to commit the choice.
+
+**Scheduling cycle phases:**
+
+1. **PreFilter** — fast checks (pod can fit anywhere?).
+2. **Filter** — eliminate nodes that violate hard constraints (taints, nodeSelector, resource requests, PVC availability).
+3. **Score** — rank remaining nodes (least-allocated, image locality, etc.).
+4. **Reserve** — tentatively claim resources on the winning node.
+5. **Bind** — write `.spec.nodeName` to the API server.
+
+If no node survives the Filter phase, the pod stays `Pending` and an event is emitted:
+
+```
+0/2 nodes are available: 2 node(s) didn't match Pod's node affinity/selector.
+```
+
+## nodeSelector
+
+The simplest scheduling constraint — a map of required node labels:
+
+```yaml
+spec:
+  nodeSelector:
+    accelerator: nvidia-tesla-v100
+```
+
+If no ready node carries all of these labels, the pod will never be scheduled. Use `kubectl get nodes --show-labels` to confirm what labels exist before writing a nodeSelector.
+
+## Node Affinity (preferred over nodeSelector)
+
+Node affinity gives you `required` (hard) and `preferred` (soft) rules, plus operators (`In`, `NotIn`, `Exists`):
+
+```yaml
+spec:
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: accelerator
+            operator: In
+            values: ["nvidia-tesla-v100", "nvidia-a100"]
+```
+
+## Debugging Pending Pods
+
+```bash
+kubectl describe pod <name>        # look at Events section
+kubectl get events --field-selector involvedObject.name=<pod>
+kubectl get nodes --show-labels    # verify label availability
+```
+
+Common Filter failures:
+
+| Event Reason | Root Cause |
+|---|---|
+| `FailedScheduling` | No node matches nodeSelector / affinity |
+| `FailedScheduling` | Insufficient CPU/memory |
+| `FailedScheduling` | Taint not tolerated |
+| `FailedScheduling` | PVC not yet bound |
+
+## Further Reading
+
+[Kubernetes Scheduler](https://kubernetes.io/docs/concepts/scheduling-eviction/kube-scheduler/)

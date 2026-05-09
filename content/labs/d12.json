@@ -1,0 +1,23 @@
+{
+  "id": "d12",
+  "title": "Optimize EKS costs with Spot + Karpenter consolidation",
+  "difficulty": "advanced",
+  "estimatedMinutes": 30,
+  "realWorldIncident": false,
+  "scenario": "Your EKS cluster runs 100% On-Demand nodes. Cost is $18k/month. The team wants to cut costs by 60% using Karpenter Spot for stateless workloads. Create two NodePools: `stateless-spot` (Spot capacity, t3/m5/m6i families, consolidation enabled) and `stateful-ondemand` (On-Demand only, no consolidation).",
+  "hiddenSetup": [],
+  "starterYaml": "apiVersion: karpenter.sh/v1\nkind: NodePool\nmetadata:\n  name: default-pool\nspec:\n  template:\n    spec:\n      requirements:\n        - key: karpenter.sh/capacity-type\n          operator: In\n          values: [\"on-demand\"]\n      nodeClassRef:\n        group: karpenter.k8s.aws\n        kind: EC2NodeClass\n        name: default\n  disruption:\n    consolidationPolicy: WhenEmpty\n    consolidateAfter: 30m\n",
+  "objectives": [
+    { "id": "stateless-pool",      "description": "NodePool `stateless-spot` exists" },
+    { "id": "spot-capacity",       "description": "`stateless-spot` uses Spot capacity type" },
+    { "id": "consolidation-on",    "description": "`stateless-spot` has `WhenEmptyOrUnderutilized` consolidation" },
+    { "id": "stateful-pool",       "description": "NodePool `stateful-ondemand` exists" },
+    { "id": "ondemand-only",       "description": "`stateful-ondemand` uses On-Demand capacity type" }
+  ],
+  "hints": [
+    { "revealAfterMs": 60000,  "text": "You need two separate NodePools. The first (`stateless-spot`) should have `capacity-type: spot` and `consolidationPolicy: WhenEmptyOrUnderutilized`. The second (`stateful-ondemand`) should have `capacity-type: on-demand` and `WhenEmpty` or no consolidation." },
+    { "revealAfterMs": 120000, "text": "Use `---` to separate the two YAML documents. Both NodePools reference `nodeClassRef.name: default`. Set `consolidateAfter: 10m` on the spot pool for aggressive consolidation." },
+    { "revealAfterMs": 180000, "text": "stateless-spot spec:\n```yaml\nrequirements:\n  - key: karpenter.sh/capacity-type\n    operator: In\n    values: [\"spot\"]\ndisruption:\n  consolidationPolicy: WhenEmptyOrUnderutilized\n  consolidateAfter: 10m\n```\nstateful-ondemand spec:\n```yaml\nrequirements:\n  - key: karpenter.sh/capacity-type\n    operator: In\n    values: [\"on-demand\"]\ndisruption:\n  consolidationPolicy: WhenEmpty\n  consolidateAfter: 30m\n```" }
+  ],
+  "solution": "apiVersion: karpenter.sh/v1\nkind: NodePool\nmetadata:\n  name: stateless-spot\nspec:\n  template:\n    spec:\n      requirements:\n        - key: karpenter.sh/capacity-type\n          operator: In\n          values: [\"spot\"]\n      nodeClassRef:\n        group: karpenter.k8s.aws\n        kind: EC2NodeClass\n        name: default\n  disruption:\n    consolidationPolicy: WhenEmptyOrUnderutilized\n    consolidateAfter: 10m\n---\napiVersion: karpenter.sh/v1\nkind: NodePool\nmetadata:\n  name: stateful-ondemand\nspec:\n  template:\n    spec:\n      requirements:\n        - key: karpenter.sh/capacity-type\n          operator: In\n          values: [\"on-demand\"]\n      nodeClassRef:\n        group: karpenter.k8s.aws\n        kind: EC2NodeClass\n        name: default\n  disruption:\n    consolidationPolicy: WhenEmpty\n    consolidateAfter: 30m\n"
+}

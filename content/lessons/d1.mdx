@@ -1,0 +1,66 @@
+---
+title: "EKS Architecture — Control Plane, Data Plane Choices"
+phase: "D"
+labId: "d1"
+---
+
+## EKS Architecture Overview
+
+EKS separates the control plane (API server, etcd, scheduler — fully managed by AWS) from the data plane (the nodes running your pods — your responsibility to some degree).
+
+**Data plane options:**
+
+| Option | You manage | AWS manages |
+|---|---|---|
+| Managed Node Groups (MNG) | Node capacity choices, AMI updates | EC2 lifecycle, health replacements |
+| Self-managed nodes | Everything | Nothing |
+| Fargate | Nothing | Node provisioning, patching, scaling |
+| EKS Auto Mode | NodePool config | All node lifecycle |
+
+## Karpenter NodePools
+
+Karpenter replaces Cluster Autoscaler with a more flexible, bin-packing approach. Instead of predefined node groups, you define **NodePools** that describe requirements:
+
+```yaml
+apiVersion: karpenter.sh/v1
+kind: NodePool
+metadata:
+  name: default
+spec:
+  template:
+    spec:
+      nodeClassRef:
+        group: karpenter.k8s.aws
+        kind: EC2NodeClass
+        name: default
+      requirements:
+      - key: karpenter.sh/capacity-type
+        operator: In
+        values: ["on-demand", "spot"]
+      - key: node.kubernetes.io/instance-type
+        operator: In
+        values: ["m5.large", "m5.xlarge", "c5.xlarge"]
+  limits:
+    cpu: "100"
+  disruption:
+    consolidationPolicy: WhenEmpty
+    consolidateAfter: 30m
+```
+
+## Capacity Types
+
+- **On-demand** — fixed pricing, no interruption. Use for stateful workloads, databases, anything that can't tolerate a 2-minute termination notice.
+- **Spot** — up to 90% cheaper, but can be reclaimed with 2 minutes warning. Perfect for stateless web tiers, batch jobs, CI runners.
+
+## Disruption Policies
+
+| Policy | When nodes are removed |
+|---|---|
+| `WhenEmpty` | Only when the node has zero pods |
+| `WhenEmptyOrUnderutilized` | Also when pods could fit on fewer nodes |
+
+Use `WhenEmpty` for stateful workloads. Use `WhenEmptyOrUnderutilized` for pure stateless tiers where cost optimization matters.
+
+## Further Reading
+
+[Karpenter Documentation](https://karpenter.sh/docs/)

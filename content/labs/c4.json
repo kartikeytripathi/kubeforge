@@ -1,0 +1,22 @@
+{
+  "id": "c4",
+  "title": "Trace the Deployment reconcile loop",
+  "difficulty": "intermediate",
+  "estimatedMinutes": 20,
+  "realWorldIncident": false,
+  "scenario": "The `api-server` Deployment should have 4 replicas but was incorrectly set to 2. The reconciler detected the drift and is waiting for someone to fix the desired state. Update the Deployment to 4 replicas and watch the controller reconcile: Deployment → ReplicaSet → 4 Pods.",
+  "hiddenSetup": [],
+  "starterYaml": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: api-server\n  namespace: default\n  labels:\n    app: api-server\nspec:\n  replicas: 2\n  selector:\n    matchLabels:\n      app: api-server\n  template:\n    metadata:\n      labels:\n        app: api-server\n    spec:\n      containers:\n      - name: api\n        image: myapp/api:v2.1.0\n        ports:\n        - containerPort: 8080\n",
+  "objectives": [
+    { "id": "deploy-exists",    "description": "Deployment `api-server` exists in `default`" },
+    { "id": "four-replicas",    "description": "Deployment specifies `replicas: 4`" },
+    { "id": "pods-running",     "description": "4 pods with label `app=api-server` are Running" },
+    { "id": "rs-exists",        "description": "A ReplicaSet owned by `api-server` exists" }
+  ],
+  "hints": [
+    { "revealAfterMs": 60000,  "text": "Only `spec.replicas` needs changing — from 2 to 4. The selector and template are correct." },
+    { "revealAfterMs": 120000, "text": "After applying, watch the Cluster View: the ReplicaSet will create 2 more Pods. They'll transition Pending → Running in a few ticks." },
+    { "revealAfterMs": 180000, "text": "Change `spec.replicas: 2` to `spec.replicas: 4` and re-apply." }
+  ],
+  "solution": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: api-server\n  namespace: default\n  labels:\n    app: api-server\nspec:\n  replicas: 4\n  selector:\n    matchLabels:\n      app: api-server\n  template:\n    metadata:\n      labels:\n        app: api-server\n    spec:\n      containers:\n      - name: api\n        image: myapp/api:v2.1.0\n        ports:\n        - containerPort: 8080\n"
+}

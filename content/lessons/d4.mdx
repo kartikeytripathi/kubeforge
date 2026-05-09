@@ -1,0 +1,71 @@
+---
+title: "AWS Load Balancer Controller"
+phase: "D"
+labId: "d4"
+---
+
+## AWS Load Balancer Controller
+
+The AWS LBC is a Kubernetes controller that manages Application Load Balancers (ALB) and Network Load Balancers (NLB) using Ingress and Service resources. It replaced the deprecated `kubernetes.io/aws-alb-ingress-controller`.
+
+## ALB Ingress Annotations
+
+The LBC reads annotations to configure the ALB:
+
+```yaml
+metadata:
+  annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/scheme: internet-facing  # or internal
+    alb.ingress.kubernetes.io/certificate-arn: "arn:aws:acm:us-east-1:ACCOUNT:certificate/ID"
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443}]'
+    alb.ingress.kubernetes.io/ssl-redirect: '443'
+    alb.ingress.kubernetes.io/target-type: ip  # pod-level routing (default: instance)
+```
+
+| Annotation | Values | Notes |
+|---|---|---|
+| `scheme` | `internet-facing`, `internal` | Public vs private ALB |
+| `target-type` | `ip`, `instance` | Pod IP vs NodePort routing |
+| `certificate-arn` | ACM ARN | HTTPS termination cert |
+
+## Target Types
+
+- **`instance`** (default) — routes to NodePorts on EC2 instances. Works with any CNI.
+- **`ip`** — routes directly to pod IPs. More efficient, requires VPC CNI. Use this with EKS.
+
+## IngressGroup
+
+Group multiple Ingresses into one ALB with `alb.ingress.kubernetes.io/group.name`:
+
+```yaml
+annotations:
+  alb.ingress.kubernetes.io/group.name: prod-alb
+  alb.ingress.kubernetes.io/group.order: "10"
+```
+
+All Ingresses with the same group name share one ALB — saving cost and the 8-ALB limit per cluster.
+
+## TargetGroupBinding
+
+`TargetGroupBinding` lets you point an existing ALB target group at Kubernetes pods without creating a new load balancer:
+
+```yaml
+apiVersion: elbv2.k8s.aws/v1beta1
+kind: TargetGroupBinding
+metadata:
+  name: payment-tgb
+spec:
+  serviceRef:
+    name: payment-svc
+    port: 8080
+  targetGroupARN: arn:aws:elasticloadbalancing:us-east-1:ACCOUNT:targetgroup/my-tg/abc123
+```
+
+## ALB and ENI Scaling
+
+Each ALB target in `ip` mode uses an ENI on the VPC. High pod counts in a single AZ can exhaust ENI capacity. Spread pods across AZs with topology spread constraints.
+
+## Further Reading
+
+[AWS Load Balancer Controller](https://kubernetes-sigs.github.io/aws-load-balancer-controller/)

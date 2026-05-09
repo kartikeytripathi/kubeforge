@@ -1,0 +1,22 @@
+{
+  "id": "c2",
+  "title": "Validating webhook: reject :latest image tags",
+  "difficulty": "intermediate",
+  "estimatedMinutes": 25,
+  "realWorldIncident": true,
+  "scenario": "Three engineers pushed `nginx:latest` this week, causing unexpected rollbacks when upstream changed. You've been asked to register a ValidatingWebhookConfiguration that blocks pods using `:latest` image tags. The starter config has two bugs: `failurePolicy: Ignore` (lets bad pods through on webhook failure) and only `operations: [\"UPDATE\"]` (misses new pod creation).",
+  "hiddenSetup": [],
+  "starterYaml": "apiVersion: admissionregistration.k8s.io/v1\nkind: ValidatingWebhookConfiguration\nmetadata:\n  name: no-latest-images\nwebhooks:\n- name: no-latest.kubeforge.io\n  admissionReviewVersions: [\"v1\"]\n  clientConfig:\n    service:\n      name: webhook-server\n      namespace: default\n      path: /validate\n  rules:\n  - apiGroups: [\"\"]\n    apiVersions: [\"v1\"]\n    resources: [\"pods\"]\n    operations: [\"UPDATE\"]\n  failurePolicy: Ignore\n  sideEffects: None\n",
+  "objectives": [
+    { "id": "webhook-exists",   "description": "ValidatingWebhookConfiguration `no-latest-images` exists" },
+    { "id": "failure-fail",     "description": "`failurePolicy` is `Fail`" },
+    { "id": "has-create",       "description": "Operations include `CREATE`" },
+    { "id": "targets-pods",     "description": "Rules target `pods` resource" }
+  ],
+  "hints": [
+    { "revealAfterMs": 60000,  "text": "Two things to fix: `failurePolicy: Ignore` → `Fail`, and add `CREATE` to the operations list." },
+    { "revealAfterMs": 120000, "text": "`failurePolicy: Ignore` means if the webhook server is unavailable, the pod admission is allowed — a security hole. `Fail` blocks pods when the webhook is unreachable." },
+    { "revealAfterMs": 180000, "text": "Change operations to `[\"CREATE\", \"UPDATE\"]` and failurePolicy to `Fail`." }
+  ],
+  "solution": "apiVersion: admissionregistration.k8s.io/v1\nkind: ValidatingWebhookConfiguration\nmetadata:\n  name: no-latest-images\nwebhooks:\n- name: no-latest.kubeforge.io\n  admissionReviewVersions: [\"v1\"]\n  clientConfig:\n    service:\n      name: webhook-server\n      namespace: default\n      path: /validate\n  rules:\n  - apiGroups: [\"\"]\n    apiVersions: [\"v1\"]\n    resources: [\"pods\"]\n    operations: [\"CREATE\", \"UPDATE\"]\n  failurePolicy: Fail\n  sideEffects: None\n"
+}

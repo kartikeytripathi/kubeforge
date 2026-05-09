@@ -22,6 +22,10 @@ import type {
   SimClusterRole,
   SimRoleBinding,
   SimHPA,
+  SimNetworkPolicy,
+  SimPodDisruptionBudget,
+  SimCRD,
+  SimCustomResource,
   Labels,
 } from "./types";
 import { generateUid, labelsMatch } from "./utils";
@@ -96,6 +100,10 @@ function defaultState(): ClusterState {
     roleBindings: [],
     hpas: [],
     events: [],
+    networkPolicies: [],
+    podDisruptionBudgets: [],
+    customResourceDefinitions: [],
+    customResources: [],
   };
 }
 
@@ -487,8 +495,103 @@ function applyManifest(state: ClusterState, doc: any): void {
       break;
     }
 
-    default:
+    case "NetworkPolicy": {
+      const existing = state.networkPolicies.findIndex(
+        (n) => n.metadata.name === name && n.metadata.namespace === namespace
+      );
+      const np: SimNetworkPolicy = {
+        kind: "NetworkPolicy",
+        apiVersion: "networking.k8s.io/v1",
+        metadata: {
+          name, namespace,
+          labels: doc.metadata?.labels ?? {},
+          uid: existing >= 0 ? state.networkPolicies[existing].metadata.uid : generateUid(),
+          creationTimestamp: existing >= 0 ? state.networkPolicies[existing].metadata.creationTimestamp : Date.now(),
+        },
+        spec: {
+          podSelector: doc.spec?.podSelector ?? {},
+          policyTypes: doc.spec?.policyTypes,
+          ingress: doc.spec?.ingress,
+          egress: doc.spec?.egress,
+        },
+      };
+      if (existing >= 0) state.networkPolicies[existing] = np;
+      else state.networkPolicies.push(np);
       break;
+    }
+
+    case "PodDisruptionBudget": {
+      const existing = state.podDisruptionBudgets.findIndex(
+        (p) => p.metadata.name === name && p.metadata.namespace === namespace
+      );
+      const pdb: SimPodDisruptionBudget = {
+        kind: "PodDisruptionBudget",
+        apiVersion: "policy/v1",
+        metadata: {
+          name, namespace,
+          labels: doc.metadata?.labels ?? {},
+          uid: existing >= 0 ? state.podDisruptionBudgets[existing].metadata.uid : generateUid(),
+          creationTimestamp: existing >= 0 ? state.podDisruptionBudgets[existing].metadata.creationTimestamp : Date.now(),
+        },
+        spec: {
+          selector: doc.spec?.selector ?? { matchLabels: {} },
+          minAvailable: doc.spec?.minAvailable,
+          maxUnavailable: doc.spec?.maxUnavailable,
+        },
+        status: { currentHealthy: 0, desiredHealthy: 0, disruptionsAllowed: 0, expectedPods: 0 },
+      };
+      if (existing >= 0) state.podDisruptionBudgets[existing] = pdb;
+      else state.podDisruptionBudgets.push(pdb);
+      break;
+    }
+
+    case "CustomResourceDefinition": {
+      const existing = state.customResourceDefinitions.findIndex((c) => c.metadata.name === name);
+      const crd: SimCRD = {
+        kind: "CustomResourceDefinition",
+        apiVersion: "apiextensions.k8s.io/v1",
+        metadata: {
+          name,
+          labels: doc.metadata?.labels ?? {},
+          uid: existing >= 0 ? state.customResourceDefinitions[existing].metadata.uid : generateUid(),
+          creationTimestamp: existing >= 0 ? state.customResourceDefinitions[existing].metadata.creationTimestamp : Date.now(),
+        },
+        spec: {
+          group: doc.spec?.group ?? "",
+          names: doc.spec?.names ?? { kind: "", plural: "" },
+          scope: doc.spec?.scope ?? "Namespaced",
+          versions: doc.spec?.versions ?? [{ name: "v1", served: true, storage: true }],
+        },
+        status: { acceptedNames: doc.spec?.names, conditions: [{ type: "Established", status: "True" }] },
+      };
+      if (existing >= 0) state.customResourceDefinitions[existing] = crd;
+      else state.customResourceDefinitions.push(crd);
+      break;
+    }
+
+    default: {
+      // Generic custom resource — store verbatim for verifier inspection
+      const existing = state.customResources.findIndex(
+        (r) => r.kind === kind && r.metadata.name === name && (r.metadata.namespace ?? "default") === namespace
+      );
+      const cr: SimCustomResource = {
+        kind,
+        apiVersion: doc.apiVersion ?? "",
+        metadata: {
+          name,
+          namespace: doc.metadata?.namespace,
+          labels: doc.metadata?.labels ?? {},
+          uid: existing >= 0 ? state.customResources[existing].metadata.uid : generateUid(),
+          creationTimestamp: existing >= 0 ? state.customResources[existing].metadata.creationTimestamp : Date.now(),
+          annotations: doc.metadata?.annotations,
+        },
+        spec: doc.spec ?? {},
+        status: doc.status,
+      };
+      if (existing >= 0) state.customResources[existing] = cr;
+      else state.customResources.push(cr);
+      break;
+    }
   }
 }
 
@@ -618,6 +721,30 @@ export class ClusterSimulator {
 
   getHPAs(namespace?: string): SimHPA[] {
     return namespace ? this.state.hpas.filter((h) => h.metadata.namespace === namespace) : this.state.hpas;
+  }
+
+  getNetworkPolicies(namespace?: string): SimNetworkPolicy[] {
+    return namespace
+      ? this.state.networkPolicies.filter((n) => n.metadata.namespace === namespace)
+      : this.state.networkPolicies;
+  }
+
+  getPodDisruptionBudgets(namespace?: string): SimPodDisruptionBudget[] {
+    return namespace
+      ? this.state.podDisruptionBudgets.filter((p) => p.metadata.namespace === namespace)
+      : this.state.podDisruptionBudgets;
+  }
+
+  getCRDs(): SimCRD[] {
+    return this.state.customResourceDefinitions;
+  }
+
+  getCustomResources(kind?: string, namespace?: string): SimCustomResource[] {
+    return this.state.customResources.filter((r) => {
+      if (kind && r.kind !== kind) return false;
+      if (namespace && r.metadata.namespace && r.metadata.namespace !== namespace) return false;
+      return true;
+    });
   }
 
   getEvents(): ClusterState["events"] {
