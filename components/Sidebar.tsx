@@ -62,7 +62,7 @@ export function Sidebar() {
       </nav>
 
       <div className="border-t border-surface-600 px-4 py-3">
-        <p className="text-xs text-gray-500">Phase 0 — Scaffolding</p>
+        <p className="text-xs text-gray-500">Phase A — Foundations</p>
       </div>
     </aside>
   );
