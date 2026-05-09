@@ -1,0 +1,22 @@
+{
+  "id": "d1",
+  "title": "Configure Karpenter NodePools for different workload types",
+  "difficulty": "intermediate",
+  "estimatedMinutes": 30,
+  "realWorldIncident": false,
+  "scenario": "You're designing the compute architecture for a new EKS cluster serving three workload types: a stateful database (needs on-demand, stable nodes), a bursty web tier (benefits from Spot), and a batch pipeline (can tolerate interruption). The starter NodePool mixes all workloads on Spot with aggressive consolidation. Create two purpose-built NodePools instead.",
+  "hiddenSetup": [],
+  "starterYaml": "apiVersion: karpenter.sh/v1\nkind: NodePool\nmetadata:\n  name: general\nspec:\n  template:\n    spec:\n      requirements:\n      - key: karpenter.sh/capacity-type\n        operator: In\n        values: [\"spot\"]\n      - key: kubernetes.io/arch\n        operator: In\n        values: [\"amd64\"]\n  disruption:\n    consolidationPolicy: WhenEmptyOrUnderutilized\n    consolidateAfter: 30s\n",
+  "objectives": [
+    { "id": "stateful-pool",   "description": "NodePool `stateful` exists with only `on-demand` capacity" },
+    { "id": "stateful-policy", "description": "NodePool `stateful` uses `WhenEmpty` consolidation (not WhenEmptyOrUnderutilized)" },
+    { "id": "burst-pool",      "description": "NodePool `burst` exists with `spot` capacity" },
+    { "id": "burst-policy",    "description": "NodePool `burst` uses `WhenEmptyOrUnderutilized` consolidation" }
+  ],
+  "hints": [
+    { "revealAfterMs": 60000,  "text": "Replace the single `general` NodePool with two: `stateful` (on-demand, WhenEmpty) and `burst` (spot, WhenEmptyOrUnderutilized)." },
+    { "revealAfterMs": 120000, "text": "`WhenEmpty` only consolidates fully empty nodes — safe for StatefulSets. `WhenEmptyOrUnderutilized` aggressively packs pods, which can evict running workloads." },
+    { "revealAfterMs": 180000, "text": "Use `---` to separate two NodePool documents. Set `karpenter.sh/capacity-type` values to `[\"on-demand\"]` for stateful and `[\"spot\"]` for burst." }
+  ],
+  "solution": "apiVersion: karpenter.sh/v1\nkind: NodePool\nmetadata:\n  name: stateful\nspec:\n  template:\n    spec:\n      requirements:\n      - key: karpenter.sh/capacity-type\n        operator: In\n        values: [\"on-demand\"]\n      - key: kubernetes.io/arch\n        operator: In\n        values: [\"amd64\"]\n  disruption:\n    consolidationPolicy: WhenEmpty\n    consolidateAfter: 30m\n---\napiVersion: karpenter.sh/v1\nkind: NodePool\nmetadata:\n  name: burst\nspec:\n  template:\n    spec:\n      requirements:\n      - key: karpenter.sh/capacity-type\n        operator: In\n        values: [\"spot\"]\n      - key: kubernetes.io/arch\n        operator: In\n        values: [\"amd64\"]\n  disruption:\n    consolidationPolicy: WhenEmptyOrUnderutilized\n    consolidateAfter: 30s\n"
+}

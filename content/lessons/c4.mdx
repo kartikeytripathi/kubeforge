@@ -1,0 +1,54 @@
+---
+title: "Controller Reconciliation with client-go Concepts"
+phase: "C"
+labId: "c4"
+---
+
+## The Reconcile Loop
+
+Every Kubernetes controller follows the same pattern: **observe** current state, **compare** to desired state, **act** to close the gap. This is called reconciliation, and it is the foundation of Kubernetes' self-healing behaviour.
+
+```
+desired (spec) ──► reconciler ──► current (status)
+        ▲                              │
+        └──────── observe ─────────────┘
+```
+
+The reconciler runs on every relevant event (create/update/delete on watched objects) and also on a periodic resync to catch any changes it might have missed.
+
+## Deployment Controller Pipeline
+
+When you apply a Deployment, three separate controllers chain together:
+
+1. **Deployment controller** — reads `spec.replicas` and `spec.template`. Creates or updates ReplicaSets when the template changes. Scales the active ReplicaSet to the desired replica count.
+
+2. **ReplicaSet controller** — reads `spec.replicas`. Creates or deletes Pods to match. Records every action in `Events`.
+
+3. **Scheduler** — watches unbound Pods and assigns `spec.nodeName`.
+
+The Deployment controller drives a rolling update by gradually scaling up the new ReplicaSet and scaling down the old one within the `maxSurge` / `maxUnavailable` budget.
+
+## Observing Reconciliation
+
+```bash
+kubectl rollout status deployment/api-server
+kubectl get events --sort-by=.lastTimestamp
+kubectl describe deployment api-server
+```
+
+Key status fields:
+
+| Field | Meaning |
+|---|---|
+| `status.replicas` | Total pods owned by the active RS |
+| `status.readyReplicas` | Pods whose readiness probe passes |
+| `status.availableReplicas` | Pods available for at least `minReadySeconds` |
+| `status.observedGeneration` | Last generation the controller processed |
+
+## client-go Informers
+
+Controllers use **informers** — local in-memory caches of API server state backed by a list-watch. This lets controllers react instantly to changes without polling, at O(1) cost per event rather than O(n) per reconcile loop.
+
+## Further Reading
+
+[Writing Controllers](https://kubernetes.io/docs/concepts/architecture/controller/)

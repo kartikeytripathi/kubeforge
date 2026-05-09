@@ -1,0 +1,22 @@
+{
+  "id": "c8",
+  "title": "Restore a namespace from a Velero backup",
+  "difficulty": "intermediate",
+  "estimatedMinutes": 25,
+  "realWorldIncident": false,
+  "scenario": "The `production` namespace was accidentally deleted. A scheduled Velero backup from earlier today exists on S3. You need to: (1) Create a Velero Backup object scoped to the `production` namespace, (2) Create a Restore from that backup. The starter Backup incorrectly includes `staging` instead of `production`.",
+  "hiddenSetup": [],
+  "starterYaml": "apiVersion: velero.io/v1\nkind: Backup\nmetadata:\n  name: production-backup\n  namespace: velero\nspec:\n  includedNamespaces:\n  - staging\n  storageLocation: default\n  ttl: 720h\n",
+  "objectives": [
+    { "id": "backup-exists",      "description": "Velero Backup `production-backup` exists in namespace `velero`" },
+    { "id": "backup-ns",          "description": "Backup includes namespace `production` (not `staging`)" },
+    { "id": "restore-exists",     "description": "Velero Restore `production-restore` exists in namespace `velero`" },
+    { "id": "restore-ref",        "description": "Restore references backup `production-backup`" }
+  ],
+  "hints": [
+    { "revealAfterMs": 60000,  "text": "Two tasks: fix the Backup's `includedNamespaces` (staging → production), then add a Restore CR that references it." },
+    { "revealAfterMs": 120000, "text": "Add a second YAML document after `---` with `kind: Restore`, pointing to `backupName: production-backup`." },
+    { "revealAfterMs": 180000, "text": "Restore template:\n```yaml\napiVersion: velero.io/v1\nkind: Restore\nmetadata:\n  name: production-restore\n  namespace: velero\nspec:\n  backupName: production-backup\n  includedNamespaces:\n  - production\n```" }
+  ],
+  "solution": "apiVersion: velero.io/v1\nkind: Backup\nmetadata:\n  name: production-backup\n  namespace: velero\nspec:\n  includedNamespaces:\n  - production\n  storageLocation: default\n  ttl: 720h\n---\napiVersion: velero.io/v1\nkind: Restore\nmetadata:\n  name: production-restore\n  namespace: velero\nspec:\n  backupName: production-backup\n  includedNamespaces:\n  - production\n"
+}

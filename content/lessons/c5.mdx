@@ -1,0 +1,80 @@
+---
+title: "Service Mesh Basics (Istio)"
+phase: "C"
+labId: "c5"
+---
+
+## What a Service Mesh Does
+
+A service mesh injects a sidecar proxy (Envoy in Istio's case) into every pod. All traffic flows through the sidecar, giving you:
+
+- **mTLS** — mutual TLS between every service pair, with automatic certificate rotation.
+- **Traffic management** — retries, circuit breaking, canary splits, header-based routing.
+- **Observability** — traces, metrics, and access logs without changing application code.
+
+The application thinks it's talking to `localhost`; the sidecar handles encryption, routing, and telemetry.
+
+## PeerAuthentication
+
+Controls whether mTLS is required for inbound connections:
+
+```yaml
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: payments-mtls
+  namespace: payments
+spec:
+  mtls:
+    mode: STRICT   # PERMISSIVE | STRICT | DISABLE
+```
+
+| Mode | Behaviour |
+|---|---|
+| `PERMISSIVE` | Accept both plaintext and mTLS. Safe for migration. |
+| `STRICT` | Reject all plaintext — only mTLS allowed. |
+| `DISABLE` | Turn off mTLS entirely for this workload. |
+
+A PeerAuthentication with no `selector` applies to **all pods in the namespace**. You can narrow it to a specific workload:
+
+```yaml
+spec:
+  selector:
+    matchLabels:
+      app: payment-api
+  mtls:
+    mode: STRICT
+```
+
+## AuthorizationPolicy
+
+Beyond mTLS, Istio lets you define who can call whom:
+
+```yaml
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-fraud-check
+  namespace: payments
+spec:
+  selector:
+    matchLabels:
+      app: payment-api
+  action: ALLOW
+  rules:
+  - from:
+    - source:
+        principals: ["cluster.local/ns/payments/sa/fraud-check"]
+```
+
+## Migration Strategy
+
+1. Enable Istio injection on the namespace with `istio-injection: enabled` label.
+2. Roll pods to inject sidecars.
+3. Apply PeerAuthentication in PERMISSIVE mode.
+4. Confirm all traffic is using mTLS via Kiali or `istioctl`.
+5. Switch to STRICT.
+
+## Further Reading
+
+[Istio Security](https://istio.io/latest/docs/concepts/security/)

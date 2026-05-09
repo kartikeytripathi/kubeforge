@@ -1,0 +1,21 @@
+{
+  "id": "c7",
+  "title": "Enforce no-privileged-containers with Kyverno",
+  "difficulty": "intermediate",
+  "estimatedMinutes": 25,
+  "realWorldIncident": false,
+  "scenario": "A security audit found 3 Deployments running containers with `securityContext.privileged: true`. You've been asked to install a Kyverno ClusterPolicy that prevents any new pods from running privileged containers. The starter policy uses `validationFailureAction: audit` (logs violations but doesn't block them). Switch it to enforce.",
+  "hiddenSetup": [],
+  "starterYaml": "apiVersion: kyverno.io/v1\nkind: ClusterPolicy\nmetadata:\n  name: disallow-privileged\nspec:\n  validationFailureAction: audit\n  background: true\n  rules:\n  - name: no-privileged\n    match:\n      any:\n      - resources:\n          kinds:\n          - Pod\n    validate:\n      message: \"Privileged containers are not allowed\"\n      pattern:\n        spec:\n          containers:\n          - =(securityContext):\n              =(privileged): \"false\"\n",
+  "objectives": [
+    { "id": "policy-exists",   "description": "ClusterPolicy `disallow-privileged` exists" },
+    { "id": "enforce-mode",    "description": "`validationFailureAction` is `Enforce`" },
+    { "id": "targets-pods",    "description": "Rules match `Pod` resources" }
+  ],
+  "hints": [
+    { "revealAfterMs": 60000,  "text": "`audit` mode logs violations to the `PolicyReport` CRD but lets pods through. Change to `Enforce` to actually block them at admission time." },
+    { "revealAfterMs": 120000, "text": "Only one field to change: `validationFailureAction: audit` → `Enforce`." },
+    { "revealAfterMs": 180000, "text": "Kyverno accepts both `Enforce` (capital E) and `enforce`. The pattern `=(securityContext)` means \"if the field exists, check it\" — pods without securityContext are allowed through." }
+  ],
+  "solution": "apiVersion: kyverno.io/v1\nkind: ClusterPolicy\nmetadata:\n  name: disallow-privileged\nspec:\n  validationFailureAction: Enforce\n  background: true\n  rules:\n  - name: no-privileged\n    match:\n      any:\n      - resources:\n          kinds:\n          - Pod\n    validate:\n      message: \"Privileged containers are not allowed\"\n      pattern:\n        spec:\n          containers:\n          - =(securityContext):\n              =(privileged): \"false\"\n"
+}

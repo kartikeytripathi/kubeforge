@@ -1,0 +1,75 @@
+---
+title: "ECR Lifecycle Policies"
+phase: "D"
+labId: "d9"
+---
+
+## How ECR Lifecycle Policies Work
+
+ECR lifecycle policies evaluate images against ordered rules (lowest `rulePriority` wins). Each rule selects images by tag status, tag pattern, or age/count, then either expires them or stops evaluation.
+
+```json
+{
+  "rules": [
+    {
+      "rulePriority": 1,
+      "description": "Protect production tags",
+      "selection": {
+        "tagStatus": "tagged",
+        "tagPatternList": ["prod-*", "release-*"],
+        "countType": "imageCountMoreThan",
+        "countNumber": 9999
+      },
+      "action": { "type": "expire" }
+    },
+    {
+      "rulePriority": 2,
+      "description": "Expire old untagged images",
+      "selection": {
+        "tagStatus": "untagged",
+        "countType": "imageCountMoreThan",
+        "countNumber": 5
+      },
+      "action": { "type": "expire" }
+    }
+  ]
+}
+```
+
+## The Multi-arch Image Problem
+
+Multi-arch images are stored as OCI **index manifests** that reference child manifests (one per architecture). ECR lifecycle policies do not follow index-to-child links when checking `imageReferencedByManifestList`. If the index manifest matches a deletion rule, ECR removes it even if the child manifests are still referenced.
+
+### Symptom
+ARM64 nodes pull images fine, but amd64 nodes get `manifest unknown` after a lifecycle cleanup ran.
+
+### Fix
+Protect multi-arch image tags with a `tagPatternList` rule at priority 1:
+
+```json
+{
+  "rulePriority": 1,
+  "selection": {
+    "tagStatus": "tagged",
+    "tagPatternList": ["prod-*"],
+    "countType": "imageCountMoreThan",
+    "countNumber": 9999
+  },
+  "action": { "type": "expire" }
+}
+```
+
+## Cross-account Lifecycle Scanning Gap
+
+ECR lifecycle policies only scan image references **within the same account**. Running workloads in a different account are invisible to the scanner. Use `tagPatternList` to protect any tag format used by production workloads across all accounts.
+
+## countType Options
+
+| countType | Description |
+|-----------|-------------|
+| `imageCountMoreThan` | Expire when more than N images match |
+| `sinceImagePushed` | Expire images older than N days |
+
+## Further Reading
+
+[ECR Lifecycle Policies](https://docs.aws.amazon.com/AmazonECR/latest/userguide/LifecyclePolicies.html)

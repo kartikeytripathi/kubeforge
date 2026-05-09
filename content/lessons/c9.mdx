@@ -1,0 +1,69 @@
+---
+title: "Boss Lab — ArgoCD Repo-Server Bottleneck"
+phase: "C"
+labId: "c9"
+---
+
+## The ArgoCD Architecture
+
+ArgoCD is split into three main components:
+
+| Component | Role |
+|---|---|
+| `argocd-server` | API server + web UI |
+| `argocd-repo-server` | Clones repos, renders Helm/Kustomize, produces manifests |
+| `argocd-application-controller` | Reconciles Applications, talks to the cluster |
+
+The **repo-server** is the most CPU-intensive component. Every sync cycle fetches the Git repo, renders templates, and diffs against the cluster. With 50 Applications all syncing concurrently, a single under-resourced repo-server becomes the bottleneck.
+
+## ARGOCD_REPO_SERVER_PARALLELISM_LIMIT
+
+This setting (set in `argocd-cmd-params-cm` under key `reposerver.parallelism.limit`) controls how many concurrent repo operations a single repo-server pod handles. The default is 1 in many older installs — completely serializing all syncs.
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cmd-params-cm
+  namespace: argocd
+data:
+  reposerver.parallelism.limit: "10"  # allow 10 concurrent operations
+```
+
+After changing the ConfigMap, the repo-server pods must restart to pick up the new value.
+
+## Horizontal Scaling
+
+The repo-server is stateless — all state is in the Git repo and etcd. Scale it horizontally:
+
+```bash
+kubectl scale deployment argocd-repo-server -n argocd --replicas=3
+```
+
+The application-controller uses a consistent-hash sharding scheme: each Application is assigned to one controller shard. Scale the controller similarly if it's the bottleneck.
+
+## Application-Controller Sharding
+
+```yaml
+# argocd-cmd-params-cm
+data:
+  controller.sharding.algorithm: round-robin
+  controller.replicas: "3"
+```
+
+## Diagnosing Bottlenecks
+
+```bash
+# Check repo-server CPU
+kubectl top pods -n argocd
+
+# Queue depth (from metrics)
+argocd_app_reconcile_bucket
+
+# Sync queue
+kubectl get applications -n argocd -o jsonpath='{.items[*].status.sync.status}'
+```
+
+## Further Reading
+
+[ArgoCD High Availability](https://argo-cd.readthedocs.io/en/stable/operator-manual/high_availability/)

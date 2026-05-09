@@ -450,6 +450,67 @@ export interface ClusterEvent {
   timestamp: number;
 }
 
+// ─── Phase C / D types ────────────────────────────────────────────────────────
+
+export interface NetworkPolicyPort {
+  protocol?: "TCP" | "UDP";
+  port?: number | string;
+}
+
+export interface NetworkPolicyPeer {
+  podSelector?: { matchLabels?: Labels };
+  namespaceSelector?: { matchLabels?: Labels };
+  ipBlock?: { cidr: string; except?: string[] };
+}
+
+export interface SimNetworkPolicy {
+  kind: "NetworkPolicy";
+  apiVersion: "networking.k8s.io/v1";
+  metadata: { name: string; namespace: string; labels: Labels; uid: string; creationTimestamp: number };
+  spec: {
+    podSelector: { matchLabels?: Labels };
+    policyTypes?: ("Ingress" | "Egress")[];
+    ingress?: { from?: NetworkPolicyPeer[]; ports?: NetworkPolicyPort[] }[];
+    egress?: { to?: NetworkPolicyPeer[]; ports?: NetworkPolicyPort[] }[];
+  };
+}
+
+export interface SimPodDisruptionBudget {
+  kind: "PodDisruptionBudget";
+  apiVersion: "policy/v1";
+  metadata: { name: string; namespace: string; labels: Labels; uid: string; creationTimestamp: number };
+  spec: {
+    selector: { matchLabels: Labels };
+    minAvailable?: number | string;
+    maxUnavailable?: number | string;
+  };
+  status: { currentHealthy: number; desiredHealthy: number; disruptionsAllowed: number; expectedPods: number };
+}
+
+export interface SimCRD {
+  kind: "CustomResourceDefinition";
+  apiVersion: "apiextensions.k8s.io/v1";
+  metadata: { name: string; labels: Labels; uid: string; creationTimestamp: number };
+  spec: {
+    group: string;
+    names: { kind: string; plural: string; singular?: string };
+    scope: "Namespaced" | "Cluster";
+    versions: { name: string; served: boolean; storage: boolean }[];
+  };
+  status: { acceptedNames?: { kind: string; plural: string }; conditions?: { type: string; status: string }[] };
+}
+
+/** Generic store for any CRD instance or unknown resource kind */
+export interface SimCustomResource {
+  kind: string;
+  apiVersion: string;
+  metadata: { name: string; namespace?: string; labels: Labels; uid: string; creationTimestamp: number; annotations?: Record<string, string> };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  spec: Record<string, any>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  status?: Record<string, any>;
+}
+
 export interface ClusterState {
   tick: number;
   nodes: SimNode[];
@@ -474,4 +535,9 @@ export interface ClusterState {
   roleBindings: SimRoleBinding[];
   hpas: SimHPA[];
   events: ClusterEvent[];
+  // Phase C / D extensions
+  networkPolicies: SimNetworkPolicy[];
+  podDisruptionBudgets: SimPodDisruptionBudget[];
+  customResourceDefinitions: SimCRD[];
+  customResources: SimCustomResource[];
 }

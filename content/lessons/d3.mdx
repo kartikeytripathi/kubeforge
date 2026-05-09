@@ -1,0 +1,64 @@
+---
+title: "IRSA and Pod Identity"
+phase: "D"
+labId: "d3"
+---
+
+## IAM Roles for Service Accounts (IRSA)
+
+IRSA lets pods assume an IAM role by annotating their Kubernetes ServiceAccount. The flow:
+
+1. EKS creates an OIDC provider for the cluster.
+2. IAM role's trust policy allows `sts:AssumeRoleWithWebIdentity` from the OIDC provider.
+3. Pod's service account annotation: `eks.amazonaws.com/role-arn: arn:aws:iam::ACCOUNT:role/ROLE`.
+4. The Pod Identity Webhook injects `AWS_WEB_IDENTITY_TOKEN_FILE` and `AWS_ROLE_ARN` env vars.
+5. AWS SDK exchanges the OIDC token for temporary credentials.
+
+```yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: s3-reader
+  namespace: default
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::123456789012:role/S3ReaderRole
+```
+
+## EKS Pod Identity (newer, preferred)
+
+Pod Identity eliminates the OIDC trust policy complexity. Instead of a cluster-specific OIDC URL in the trust policy, you create an association via the EKS API:
+
+```bash
+aws eks create-pod-identity-association \
+  --cluster-name my-cluster \
+  --namespace default \
+  --service-account s3-reader \
+  --role-arn arn:aws:iam::123456789012:role/S3ReaderRole
+```
+
+The ServiceAccount annotation changes to:
+```yaml
+annotations:
+  eks.amazonaws.com/pod-identity-association: arn:aws:iam::123456789012:role/S3ReaderRole
+```
+
+## IRSA vs Pod Identity Comparison
+
+| Feature | IRSA | Pod Identity |
+|---|---|---|
+| OIDC provider required | Yes | No |
+| Trust policy complexity | High (cluster-specific OIDC URL) | Low (EKS service principal) |
+| Cross-account | Needs trust policy edit per account | Native support |
+| Multi-cluster reuse | New trust policy per cluster | Same role, new association |
+| Credential refresh | OIDC token rotation | Automatic via EKS agent |
+
+## Migration Strategy
+
+1. Create the Pod Identity association via AWS CLI/CDK.
+2. Update the ServiceAccount annotation.
+3. Restart pods to pick up new credentials.
+4. Remove the OIDC provider if no other service accounts still use IRSA.
+
+## Further Reading
+
+[EKS Pod Identity](https://docs.aws.amazon.com/eks/latest/userguide/pod-identities.html)

@@ -1,0 +1,46 @@
+---
+title: "ShopEKS Revival — Phase D Capstone"
+phase: "D"
+labId: "d13"
+---
+
+## Capstone Overview
+
+This lab pulls together every Phase D topic into a single incident response scenario. You'll fix four independent failures that have stacked up in ShopEKS:
+
+1. **ArgoCD target revision** — stale branch reference
+2. **PDB misconfiguration** — drain permanently blocked
+3. **Karpenter over-consolidation** — pods evicted under load
+4. **Pod Identity wrong role** — ECR pull unauthorized
+
+Working through a stacked incident requires systematic triage: fix the most disruptive issue first, verify it, then move to the next.
+
+## Systematic Triage Framework
+
+```
+1. Identify blast radius — what is down? (pods, namespace, full cluster?)
+2. Check recent changes — ArgoCD sync history, Karpenter event log
+3. Isolate root cause — one failure at a time
+4. Fix + verify — apply, confirm pods healthy
+5. Move to next failure
+```
+
+## ArgoCD: Stale targetRevision
+
+ArgoCD stores the target Git ref in the `Application` spec. If the branch is deleted, ArgoCD enters `Missing` state and stops syncing. Fix: update `targetRevision` to an existing branch (`main`).
+
+## PDB: Blocking Drain
+
+`minAvailable: N` where N equals total replicas means the drain controller can never evict a pod — all replicas are always "needed." This permanently blocks node drains, EKS upgrades, and Karpenter consolidation. Fix: `minAvailable: replicas - 1` to leave one slot for eviction.
+
+## Karpenter: Over-aggressive Consolidation
+
+`WhenEmptyOrUnderutilized` with a short `consolidateAfter` (e.g. 5 minutes) reschedules pods continuously under fluctuating load. This causes tail latency spikes and connection resets. Fix for stateful/production pools: switch to `WhenEmpty` consolidation and increase `consolidateAfter` to 30 minutes or more.
+
+## Pod Identity: Wrong Role
+
+The ServiceAccount annotation `eks.amazonaws.com/role-arn` must point to a role that has `ecr:GetAuthorizationToken` and the repository-level pull permissions. A wrong role ARN causes `ImagePullBackOff` on pods using that ServiceAccount. Fix: update the annotation to the correct role ARN.
+
+## Further Reading
+
+[EKS Troubleshooting](https://docs.aws.amazon.com/eks/latest/userguide/troubleshooting.html)

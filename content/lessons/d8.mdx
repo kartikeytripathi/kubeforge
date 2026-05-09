@@ -1,0 +1,78 @@
+---
+title: "Cross-account ECR"
+phase: "D"
+labId: "d8"
+---
+
+## ECR Repository Policies
+
+Every ECR repository has an optional resource-based policy that controls who can pull from it. By default, only the owning account has access. For cross-account pulls, you must explicitly grant access.
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "CrossAccountPull",
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": "arn:aws:iam::WORKLOAD_ACCOUNT:root"
+      },
+      "Action": [
+        "ecr:GetDownloadUrlForLayer",
+        "ecr:BatchGetImage",
+        "ecr:BatchCheckLayerAvailability"
+      ]
+    }
+  ]
+}
+```
+
+The workload account's EC2/EKS nodes also need the `ecr:GetAuthorizationToken` permission on their instance profile.
+
+## The "Image Still In Use" Gap
+
+ECR lifecycle policies can delete image tags that are still referenced by running workloads in another account. The gap: ECR lifecycle policies scan for referenced images only within the **same account**. Cross-account references are invisible to the scanner.
+
+### Symptoms
+- Pods fail with `ImagePullBackOff` after an ECR cleanup job runs.
+- The image tag was deleted because ECR thought it was unused.
+
+### Fix
+Use `tagPatternList` to protect tags used by production workloads:
+
+```json
+{
+  "rulePriority": 1,
+  "description": "Protect production tags",
+  "selection": {
+    "tagStatus": "tagged",
+    "tagPatternList": ["prod-*", "release-*"],
+    "countType": "imageCountMoreThan",
+    "countNumber": 50
+  },
+  "action": { "type": "expire" }
+}
+```
+
+## Multi-account ECR Replication
+
+For high availability, configure ECR replication to push images to registries in each account:
+
+```bash
+aws ecr put-replication-configuration \
+  --replication-configuration '{
+    "rules": [{
+      "destinations": [{
+        "region": "us-east-1",
+        "registryId": "999888777666"
+      }]
+    }]
+  }'
+```
+
+Replication eliminates cross-account pull latency and eliminates the policy gap — each account has its own copy.
+
+## Further Reading
+
+[ECR Private Repository Policies](https://docs.aws.amazon.com/AmazonECR/latest/userguide/repository-policies.html)

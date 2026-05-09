@@ -1,0 +1,30 @@
+{
+  "id": "d10",
+  "title": "Enable kubelet volume metrics for EKS observability",
+  "difficulty": "intermediate",
+  "estimatedMinutes": 20,
+  "realWorldIncident": false,
+  "scenario": "Your Grafana dashboard shows no `kubelet_volume_stats_*` metrics. The `amazon-cloudwatch-agent` ConfigMap is missing the `metrics_collection` section for `disk` and `mem`. Add the missing metrics sections so volume utilization is tracked.",
+  "hiddenSetup": [
+    {
+      "kind": "ConfigMap",
+      "metadata": { "name": "amazon-cloudwatch-agent", "namespace": "amazon-cloudwatch" },
+      "data": {
+        "cwagentconfig.json": "{\n  \"agent\": { \"metrics_collection_interval\": 60 },\n  \"metrics\": {\n    \"metrics_collected\": {\n      \"cpu\": { \"measurement\": [\"cpu_usage_idle\"] }\n    }\n  }\n}"
+      }
+    }
+  ],
+  "starterYaml": "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: amazon-cloudwatch-agent\n  namespace: amazon-cloudwatch\ndata:\n  cwagentconfig.json: |\n    {\n      \"agent\": { \"metrics_collection_interval\": 60 },\n      \"metrics\": {\n        \"metrics_collected\": {\n          \"cpu\": { \"measurement\": [\"cpu_usage_idle\"] }\n        }\n      }\n    }\n",
+  "objectives": [
+    { "id": "cm-exists",    "description": "ConfigMap `amazon-cloudwatch-agent` exists in `amazon-cloudwatch`" },
+    { "id": "has-disk",     "description": "`cwagentconfig.json` includes `disk` metrics collection" },
+    { "id": "has-mem",      "description": "`cwagentconfig.json` includes `mem` metrics collection" },
+    { "id": "has-path",     "description": "`disk` section includes a `measurement` entry" }
+  ],
+  "hints": [
+    { "revealAfterMs": 60000,  "text": "The `amazon-cloudwatch-agent` ConfigMap controls which host metrics the agent collects. Add `disk` and `mem` sections inside `metrics_collected`." },
+    { "revealAfterMs": 120000, "text": "Add these two entries to `metrics_collected`: `\"disk\": { \"measurement\": [\"used_percent\"], \"resources\": [\"*\"] }` and `\"mem\": { \"measurement\": [\"mem_used_percent\"] }`." },
+    { "revealAfterMs": 180000, "text": "Your updated `metrics_collected` should look like:\n```json\n\"metrics_collected\": {\n  \"cpu\": { \"measurement\": [\"cpu_usage_idle\"] },\n  \"disk\": { \"measurement\": [\"used_percent\"], \"resources\": [\"*\"] },\n  \"mem\": { \"measurement\": [\"mem_used_percent\"] }\n}\n```" }
+  ],
+  "solution": "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: amazon-cloudwatch-agent\n  namespace: amazon-cloudwatch\ndata:\n  cwagentconfig.json: |\n    {\n      \"agent\": { \"metrics_collection_interval\": 60 },\n      \"metrics\": {\n        \"metrics_collected\": {\n          \"cpu\": { \"measurement\": [\"cpu_usage_idle\"] },\n          \"disk\": { \"measurement\": [\"used_percent\"], \"resources\": [\"*\"] },\n          \"mem\": { \"measurement\": [\"mem_used_percent\"] }\n        }\n      }\n    }\n"
+}

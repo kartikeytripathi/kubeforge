@@ -1,0 +1,22 @@
+{
+  "id": "d6",
+  "title": "Enable EKS Auto Mode with the correct NodeClass reference",
+  "difficulty": "intermediate",
+  "estimatedMinutes": 20,
+  "realWorldIncident": false,
+  "scenario": "Your team wants zero node management overhead. EKS Auto Mode handles the data plane — AMI updates, node scaling, CNI, kube-proxy, CoreDNS, and the load balancer controller — all managed by AWS. You need to create a Karpenter NodePool that references EKS Auto Mode's built-in `NodeClass`. The starter NodePool references `wrong-class` instead of the required `default` NodeClass.",
+  "hiddenSetup": [],
+  "starterYaml": "apiVersion: karpenter.sh/v1\nkind: NodePool\nmetadata:\n  name: auto-mode-pool\nspec:\n  template:\n    metadata:\n      labels:\n        eks-auto: \"true\"\n    spec:\n      nodeClassRef:\n        group: eks.amazonaws.com\n        kind: NodeClass\n        name: wrong-class\n      requirements:\n      - key: karpenter.sh/capacity-type\n        operator: In\n        values: [\"on-demand\"]\n  disruption:\n    consolidationPolicy: WhenEmpty\n    consolidateAfter: 1h\n",
+  "objectives": [
+    { "id": "pool-exists",    "description": "NodePool `auto-mode-pool` exists" },
+    { "id": "class-name",     "description": "`nodeClassRef.name` is `default`" },
+    { "id": "class-group",    "description": "`nodeClassRef.group` is `eks.amazonaws.com`" },
+    { "id": "class-kind",     "description": "`nodeClassRef.kind` is `NodeClass`" }
+  ],
+  "hints": [
+    { "revealAfterMs": 60000,  "text": "EKS Auto Mode provides a single built-in NodeClass named `default` in the `eks.amazonaws.com` API group. Any other name will fail to provision nodes." },
+    { "revealAfterMs": 120000, "text": "Change `nodeClassRef.name: wrong-class` to `nodeClassRef.name: default`. The group and kind are already correct." },
+    { "revealAfterMs": 180000, "text": "The complete nodeClassRef for EKS Auto Mode:\n```yaml\nnodeClassRef:\n  group: eks.amazonaws.com\n  kind: NodeClass\n  name: default\n```" }
+  ],
+  "solution": "apiVersion: karpenter.sh/v1\nkind: NodePool\nmetadata:\n  name: auto-mode-pool\nspec:\n  template:\n    metadata:\n      labels:\n        eks-auto: \"true\"\n    spec:\n      nodeClassRef:\n        group: eks.amazonaws.com\n        kind: NodeClass\n        name: default\n      requirements:\n      - key: karpenter.sh/capacity-type\n        operator: In\n        values: [\"on-demand\"]\n  disruption:\n    consolidationPolicy: WhenEmpty\n    consolidateAfter: 1h\n"
+}

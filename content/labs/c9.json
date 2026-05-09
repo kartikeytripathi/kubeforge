@@ -1,0 +1,40 @@
+{
+  "id": "c9",
+  "title": "Boss Lab — ArgoCD repo-server bottleneck",
+  "difficulty": "advanced",
+  "estimatedMinutes": 40,
+  "realWorldIncident": true,
+  "scenario": "🔥 Your ArgoCD manages 50 Applications. The `argocd-repo-server` pod is at 100% CPU and syncs are queued for 15+ minutes. Root cause: `ARGOCD_REPO_SERVER_PARALLELISM_LIMIT` is set to 1 (serializes all repo operations) and only 1 replica exists. Fix: (1) set the parallelism limit to 10 in the ConfigMap, (2) scale repo-server to 3 replicas.",
+  "hiddenSetup": [
+    {
+      "kind": "ConfigMap",
+      "metadata": { "name": "argocd-cmd-params-cm", "namespace": "argocd" },
+      "data": { "reposerver.parallelism.limit": "1" }
+    },
+    {
+      "kind": "Deployment",
+      "metadata": { "name": "argocd-repo-server", "namespace": "argocd" },
+      "spec": {
+        "replicas": 1,
+        "selector": { "matchLabels": { "app.kubernetes.io/name": "argocd-repo-server" } },
+        "template": {
+          "metadata": { "labels": { "app.kubernetes.io/name": "argocd-repo-server" } },
+          "spec": { "containers": [{ "name": "argocd-repo-server", "image": "quay.io/argoproj/argocd:v2.10.0" }] }
+        }
+      }
+    }
+  ],
+  "starterYaml": "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: argocd-cmd-params-cm\n  namespace: argocd\ndata:\n  reposerver.parallelism.limit: \"1\"\n",
+  "objectives": [
+    { "id": "parallelism-high",   "description": "`reposerver.parallelism.limit` is 10 or higher" },
+    { "id": "replicas-3",         "description": "Deployment `argocd-repo-server` has `replicas >= 3`" },
+    { "id": "pods-running",       "description": "argocd-repo-server pods are Running" },
+    { "id": "cm-namespace",       "description": "ConfigMap is in namespace `argocd`" }
+  ],
+  "hints": [
+    { "revealAfterMs": 60000,  "text": "Two fixes: update the ConfigMap `reposerver.parallelism.limit` to `\"10\"`, then apply a Deployment with `replicas: 3`." },
+    { "revealAfterMs": 120000, "text": "The ConfigMap change controls how many concurrent git operations the repo-server handles. More replicas spreads the load across pods." },
+    { "revealAfterMs": 180000, "text": "Add a second YAML document (after ---) with the argocd-repo-server Deployment, setting `spec.replicas: 3`." }
+  ],
+  "solution": "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: argocd-cmd-params-cm\n  namespace: argocd\ndata:\n  reposerver.parallelism.limit: \"10\"\n---\napiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: argocd-repo-server\n  namespace: argocd\nspec:\n  replicas: 3\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: argocd-repo-server\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: argocd-repo-server\n    spec:\n      containers:\n      - name: argocd-repo-server\n        image: quay.io/argoproj/argocd:v2.10.0\n"
+}

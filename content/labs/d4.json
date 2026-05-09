@@ -1,0 +1,32 @@
+{
+  "id": "d4",
+  "title": "Configure an internet-facing ALB with AWS Load Balancer Controller",
+  "difficulty": "intermediate",
+  "estimatedMinutes": 25,
+  "realWorldIncident": false,
+  "scenario": "The payment service needs an Internet-facing ALB with HTTPS termination. The starter Ingress has two problems: `alb.ingress.kubernetes.io/scheme` is set to `internal` (creating a private load balancer) and the ACM certificate ARN is malformed. Fix both annotations.",
+  "hiddenSetup": [
+    {
+      "kind": "Service",
+      "metadata": { "name": "payment-svc", "namespace": "default" },
+      "spec": {
+        "type": "ClusterIP",
+        "selector": { "app": "payment-api" },
+        "ports": [{ "port": 443, "targetPort": 443 }]
+      }
+    }
+  ],
+  "starterYaml": "apiVersion: networking.k8s.io/v1\nkind: Ingress\nmetadata:\n  name: payment-ingress\n  namespace: default\n  annotations:\n    kubernetes.io/ingress.class: alb\n    alb.ingress.kubernetes.io/scheme: internal\n    alb.ingress.kubernetes.io/certificate-arn: \"invalid-arn\"\n    alb.ingress.kubernetes.io/listen-ports: '[{\"HTTPS\":443}]'\nspec:\n  ingressClassName: alb\n  rules:\n  - host: payments.example.com\n    http:\n      paths:\n      - path: /\n        pathType: Prefix\n        backend:\n          service:\n            name: payment-svc\n            port:\n              number: 443\n",
+  "objectives": [
+    { "id": "ingress-exists",   "description": "Ingress `payment-ingress` exists in `default`" },
+    { "id": "scheme-public",    "description": "Scheme annotation is `internet-facing`" },
+    { "id": "cert-valid",       "description": "Certificate ARN starts with `arn:aws:acm:`" },
+    { "id": "class-alb",        "description": "`ingressClassName` is `alb`" }
+  ],
+  "hints": [
+    { "revealAfterMs": 60000,  "text": "Two fixes: change `scheme: internal` to `scheme: internet-facing`, and replace `invalid-arn` with a valid ACM certificate ARN." },
+    { "revealAfterMs": 120000, "text": "ALB scheme `internal` creates a load balancer only reachable within the VPC. `internet-facing` creates a public-facing ALB with an Internet-routable DNS name." },
+    { "revealAfterMs": 180000, "text": "ACM certificate ARNs look like `arn:aws:acm:us-east-1:123456789012:certificate/abc-123`. The region must match where your certificate is issued." }
+  ],
+  "solution": "apiVersion: networking.k8s.io/v1\nkind: Ingress\nmetadata:\n  name: payment-ingress\n  namespace: default\n  annotations:\n    kubernetes.io/ingress.class: alb\n    alb.ingress.kubernetes.io/scheme: internet-facing\n    alb.ingress.kubernetes.io/certificate-arn: \"arn:aws:acm:us-east-1:123456789012:certificate/abc-def-123\"\n    alb.ingress.kubernetes.io/listen-ports: '[{\"HTTPS\":443}]'\nspec:\n  ingressClassName: alb\n  rules:\n  - host: payments.example.com\n    http:\n      paths:\n      - path: /\n        pathType: Prefix\n        backend:\n          service:\n            name: payment-svc\n            port:\n              number: 443\n"
+}

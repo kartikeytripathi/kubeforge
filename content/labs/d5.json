@@ -1,0 +1,22 @@
+{
+  "id": "d5",
+  "title": "Fix Karpenter's over-aggressive consolidation",
+  "difficulty": "intermediate",
+  "estimatedMinutes": 25,
+  "realWorldIncident": true,
+  "scenario": "🔥 Karpenter is disrupting nodes every 10 minutes, causing pod evictions and 5xx spikes. The NodePool uses `WhenEmptyOrUnderutilized` with `consolidateAfter: 10m` — every minor traffic dip triggers node consolidation, evicting pods mid-request. Fix: switch to `WhenEmpty` consolidation and set `consolidateAfter: 30m` for production stability.",
+  "hiddenSetup": [],
+  "starterYaml": "apiVersion: karpenter.sh/v1\nkind: NodePool\nmetadata:\n  name: default\nspec:\n  template:\n    spec:\n      requirements:\n      - key: karpenter.sh/capacity-type\n        operator: In\n        values: [\"on-demand\", \"spot\"]\n      - key: node.kubernetes.io/instance-type\n        operator: In\n        values: [\"m5.large\", \"m5.xlarge\", \"m5.2xlarge\"]\n  limits:\n    cpu: \"100\"\n    memory: 400Gi\n  disruption:\n    consolidationPolicy: WhenEmptyOrUnderutilized\n    consolidateAfter: 10m\n",
+  "objectives": [
+    { "id": "pool-exists",      "description": "NodePool `default` exists" },
+    { "id": "when-empty",       "description": "`consolidationPolicy` is `WhenEmpty`" },
+    { "id": "slow-consolidate", "description": "`consolidateAfter` is `30m` or longer (not 10m)" },
+    { "id": "both-capacities",  "description": "Both `on-demand` and `spot` are in requirements" }
+  ],
+  "hints": [
+    { "revealAfterMs": 60000,  "text": "`WhenEmptyOrUnderutilized` considers a node underutilized if its pods could fit on fewer nodes — which triggers at 10m intervals during normal traffic variation." },
+    { "revealAfterMs": 120000, "text": "`WhenEmpty` only consolidates nodes that have zero pods. Much safer for production: pods are never evicted unless they've already moved away." },
+    { "revealAfterMs": 180000, "text": "Change `consolidationPolicy: WhenEmptyOrUnderutilized` → `WhenEmpty` and `consolidateAfter: 10m` → `30m`." }
+  ],
+  "solution": "apiVersion: karpenter.sh/v1\nkind: NodePool\nmetadata:\n  name: default\nspec:\n  template:\n    spec:\n      requirements:\n      - key: karpenter.sh/capacity-type\n        operator: In\n        values: [\"on-demand\", \"spot\"]\n      - key: node.kubernetes.io/instance-type\n        operator: In\n        values: [\"m5.large\", \"m5.xlarge\", \"m5.2xlarge\"]\n  limits:\n    cpu: \"100\"\n    memory: 400Gi\n  disruption:\n    consolidationPolicy: WhenEmpty\n    consolidateAfter: 30m\n"
+}

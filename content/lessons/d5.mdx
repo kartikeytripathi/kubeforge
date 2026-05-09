@@ -1,0 +1,86 @@
+---
+title: "Karpenter"
+phase: "D"
+labId: "d5"
+---
+
+## Karpenter vs Cluster Autoscaler
+
+Cluster Autoscaler scales predefined node groups up/down based on pending pods and underutilization. Karpenter takes a different approach: it provisions individual nodes of exactly the right size for pending pods, and aggressively removes underutilized nodes.
+
+The key difference: Karpenter bins-packs pods to find the minimum-cost instance, rather than scaling a pre-specified group type.
+
+## NodePool
+
+A NodePool defines the shape of nodes Karpenter can launch:
+
+```yaml
+apiVersion: karpenter.sh/v1
+kind: NodePool
+metadata:
+  name: default
+spec:
+  template:
+    spec:
+      nodeClassRef:
+        group: karpenter.k8s.aws
+        kind: EC2NodeClass
+        name: default
+      requirements:
+      - key: karpenter.sh/capacity-type
+        operator: In
+        values: ["on-demand", "spot"]
+      - key: node.kubernetes.io/instance-type
+        operator: In
+        values: ["m5.large", "m5.xlarge", "c5.xlarge", "c5.2xlarge"]
+  limits:
+    cpu: "1000"
+  disruption:
+    consolidationPolicy: WhenEmpty
+    consolidateAfter: 30m
+```
+
+## Disruption (Consolidation)
+
+| Policy | Behaviour | When to use |
+|---|---|---|
+| `WhenEmpty` | Remove nodes with zero pods | Production — never evicts running pods |
+| `WhenEmptyOrUnderutilized` | Also consolidate underutilized nodes | Dev/batch — accepts pod disruption |
+
+`consolidateAfter` — how long a node must be in the consolidatable state before Karpenter acts. Short values cause thrashing under variable load.
+
+## The @daily + 10m Bug
+
+A common misconfiguration:
+
+```yaml
+disruption:
+  consolidationPolicy: WhenEmptyOrUnderutilized
+  consolidateAfter: 10m
+```
+
+Under bursty traffic, a node may briefly look underutilized → Karpenter evicts pods → pods reschedule → traffic returns → node is recreated. At 10-minute intervals this can cause rolling disruptions throughout the day.
+
+## EC2NodeClass
+
+EC2-specific configuration: AMI family, security groups, subnets, instance profiles:
+
+```yaml
+apiVersion: karpenter.k8s.aws/v1
+kind: EC2NodeClass
+metadata:
+  name: default
+spec:
+  amiFamily: AL2023
+  role: KarpenterNodeRole
+  subnetSelectorTerms:
+  - tags:
+      karpenter.sh/discovery: my-cluster
+  securityGroupSelectorTerms:
+  - tags:
+      karpenter.sh/discovery: my-cluster
+```
+
+## Further Reading
+
+[Karpenter Docs](https://karpenter.sh/docs/)

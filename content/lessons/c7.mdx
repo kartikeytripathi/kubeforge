@@ -1,0 +1,75 @@
+---
+title: "Pod Security Standards, OPA/Kyverno"
+phase: "C"
+labId: "c7"
+---
+
+## Pod Security Standards
+
+Kubernetes ships with three built-in security profiles applied at the namespace level:
+
+| Profile | What it blocks |
+|---|---|
+| `privileged` | Nothing — fully unrestricted |
+| `baseline` | Known privilege escalations (hostPID, hostNetwork, privileged containers) |
+| `restricted` | Requires non-root, drops all capabilities, read-only rootfs |
+
+Enable via namespace label:
+```yaml
+metadata:
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/warn: restricted
+```
+
+PSS is built-in but coarse — it can't express custom rules like "only images from our registry."
+
+## Kyverno
+
+Kyverno is a Kubernetes-native policy engine. Policies are Kubernetes resources (CRDs), not Rego code — making them accessible to anyone comfortable with YAML.
+
+```yaml
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: disallow-privileged
+spec:
+  validationFailureAction: Enforce  # or Audit
+  rules:
+  - name: no-privileged
+    match:
+      any:
+      - resources:
+          kinds: [Pod]
+    validate:
+      message: "Privileged containers are not allowed"
+      pattern:
+        spec:
+          containers:
+          - =(securityContext):
+              =(privileged): "false"
+```
+
+Key concepts:
+
+- **`Enforce`** — blocks admission, returns HTTP 403.
+- **`Audit`** — allows admission but records a `PolicyReport` violation.
+- **`=(field)`** — conditional pattern: "if this field exists, it must match."
+- **`background: true`** — also scans existing resources.
+
+## OPA Gatekeeper
+
+OPA Gatekeeper uses Rego (a general-purpose policy language) via `ConstraintTemplate` CRDs. More powerful than Kyverno for complex logic, but requires learning Rego. Both install as mutating + validating webhooks.
+
+## PolicyReport
+
+Kyverno writes audit results to `PolicyReport` (namespaced) and `ClusterPolicyReport` (cluster-wide) CRDs. Query with:
+
+```bash
+kubectl get policyreport -A
+kubectl get clusterpolicyreport
+```
+
+## Further Reading
+
+[Kyverno Documentation](https://kyverno.io/docs/)

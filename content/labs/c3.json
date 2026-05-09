@@ -1,0 +1,21 @@
+{
+  "id": "c3",
+  "title": "Debug a Pending pod — scheduler nodeSelector mismatch",
+  "difficulty": "intermediate",
+  "estimatedMinutes": 20,
+  "realWorldIncident": false,
+  "scenario": "A `gpu-workload` pod has been Pending for 10 minutes. The pod's `nodeSelector` requires `accelerator: nvidia-tesla-v100`, but neither cluster node carries that label. The cluster has two nodes with only `kubernetes.io/hostname` labels. Fix the pod so it can be scheduled.",
+  "hiddenSetup": [],
+  "starterYaml": "apiVersion: v1\nkind: Pod\nmetadata:\n  name: gpu-workload\n  namespace: default\n  labels:\n    app: gpu-workload\nspec:\n  nodeSelector:\n    accelerator: nvidia-tesla-v100\n  containers:\n  - name: trainer\n    image: tensorflow/tensorflow:2.14-gpu\n    resources:\n      requests:\n        cpu: \"500m\"\n        memory: \"1Gi\"\n",
+  "objectives": [
+    { "id": "pod-exists",   "description": "Pod `gpu-workload` exists in `default` namespace" },
+    { "id": "pod-running",  "description": "Pod is in `Running` phase (not Pending)" },
+    { "id": "no-selector",  "description": "Pod has no unsatisfiable `nodeSelector`" }
+  ],
+  "hints": [
+    { "revealAfterMs": 60000,  "text": "Check `kubectl get events` — you'll see `FailedScheduling: 0/2 nodes available`. The nodeSelector requires a label no node has." },
+    { "revealAfterMs": 120000, "text": "The cluster nodes (`sim-node-1`, `sim-node-2`) only have `kubernetes.io/hostname` labels. Remove the `nodeSelector` field entirely to let the scheduler pick any ready node." },
+    { "revealAfterMs": 180000, "text": "Delete the entire `spec.nodeSelector` block and re-apply. The scheduler will assign the pod to a ready node." }
+  ],
+  "solution": "apiVersion: v1\nkind: Pod\nmetadata:\n  name: gpu-workload\n  namespace: default\n  labels:\n    app: gpu-workload\nspec:\n  containers:\n  - name: trainer\n    image: tensorflow/tensorflow:2.14-gpu\n    resources:\n      requests:\n        cpu: \"500m\"\n        memory: \"1Gi\"\n"
+}

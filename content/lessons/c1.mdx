@@ -1,0 +1,66 @@
+---
+title: "CRDs and the Operator Pattern"
+phase: "C"
+labId: "c1"
+---
+
+## CustomResourceDefinitions
+
+Kubernetes ships with built-in resource types — Pods, Deployments, Services. But the API server is extensible: you can teach it about entirely new resource types by registering a **CustomResourceDefinition (CRD)**. Once registered, your custom type behaves like any native resource: it is stored in etcd, filterable with label selectors, and watchable by controllers.
+
+A CRD defines:
+
+- **group** — the API group, e.g. `kubeforge.io`. This becomes the prefix in `apiVersion: kubeforge.io/v1`.
+- **names** — `kind` (PascalCase singular), `plural` (lowercase), `singular` (optional alias).
+- **scope** — `Namespaced` (like Pods) or `Cluster` (like Nodes).
+- **versions** — which API versions are served and stored.
+
+```yaml
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: echoes.kubeforge.io   # must be {plural}.{group}
+spec:
+  group: kubeforge.io
+  names:
+    kind: Echo
+    plural: echoes
+  scope: Namespaced
+  versions:
+  - name: v1
+    served: true
+    storage: true
+```
+
+Once established, you create instances just like any other resource:
+
+```yaml
+apiVersion: kubeforge.io/v1
+kind: Echo
+metadata:
+  name: hello-echo
+  namespace: default
+spec:
+  message: "Hello from KubeForge"
+```
+
+## The Operator Pattern
+
+A CRD alone is inert — it's just a database row. An **operator** is a controller that watches CRD instances and reconciles them to some desired state. The classic loop:
+
+1. Watch: list-watch on the custom resource.
+2. Reconcile: compare `.spec` (desired) with `.status` (observed).
+3. Act: create/update/delete other resources to close the gap.
+4. Update status: write the result back to `.status`.
+
+Well-known operators: cert-manager (watches `Certificate` CRs), ArgoCD (watches `Application` CRs), Karpenter (watches `NodePool` CRs).
+
+## Common Pitfalls
+
+- The CRD name **must** be `{plural}.{group}` — mismatches silently break API group routing.
+- `spec.group` must exactly match the `apiVersion` prefix used in CR manifests.
+- CRDs are cluster-scoped even when `spec.scope: Namespaced` — only the *instances* are namespaced.
+
+## Further Reading
+
+[Kubernetes CRD docs](https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/)

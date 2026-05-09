@@ -1,0 +1,50 @@
+{
+  "id": "c5",
+  "title": "Enforce mTLS in the payments namespace with Istio",
+  "difficulty": "intermediate",
+  "estimatedMinutes": 25,
+  "realWorldIncident": false,
+  "scenario": "The security team has mandated that all service-to-service traffic in the `payments` namespace must be encrypted with mutual TLS. Two Deployments (`payment-api` and `fraud-check`) are already running there. Apply an Istio PeerAuthentication policy that requires STRICT mTLS for all inbound traffic.",
+  "hiddenSetup": [
+    {
+      "kind": "Namespace",
+      "metadata": { "name": "payments" }
+    },
+    {
+      "kind": "Deployment",
+      "metadata": { "name": "payment-api", "namespace": "payments" },
+      "spec": {
+        "replicas": 2,
+        "selector": { "matchLabels": { "app": "payment-api" } },
+        "template": {
+          "metadata": { "labels": { "app": "payment-api" } },
+          "spec": { "containers": [{ "name": "api", "image": "payments/api:v1.0" }] }
+        }
+      }
+    },
+    {
+      "kind": "Deployment",
+      "metadata": { "name": "fraud-check", "namespace": "payments" },
+      "spec": {
+        "replicas": 1,
+        "selector": { "matchLabels": { "app": "fraud-check" } },
+        "template": {
+          "metadata": { "labels": { "app": "fraud-check" } },
+          "spec": { "containers": [{ "name": "fc", "image": "payments/fraud-check:v1.0" }] }
+        }
+      }
+    }
+  ],
+  "starterYaml": "apiVersion: security.istio.io/v1beta1\nkind: PeerAuthentication\nmetadata:\n  name: payments-mtls\n  namespace: payments\nspec:\n  mtls:\n    mode: PERMISSIVE\n",
+  "objectives": [
+    { "id": "pa-exists",     "description": "PeerAuthentication `payments-mtls` exists in namespace `payments`" },
+    { "id": "mode-strict",   "description": "`mtls.mode` is `STRICT`" },
+    { "id": "ns-exists",     "description": "Namespace `payments` exists" }
+  ],
+  "hints": [
+    { "revealAfterMs": 60000,  "text": "PERMISSIVE allows both plaintext and mTLS — fine for migration, dangerous for compliance. STRICT requires mTLS for every inbound connection." },
+    { "revealAfterMs": 120000, "text": "Change `mode: PERMISSIVE` to `mode: STRICT`. That is the only change needed." },
+    { "revealAfterMs": 180000, "text": "A PeerAuthentication with no selector applies to all pods in the namespace. STRICT mode will reject any plaintext connection." }
+  ],
+  "solution": "apiVersion: security.istio.io/v1beta1\nkind: PeerAuthentication\nmetadata:\n  name: payments-mtls\n  namespace: payments\nspec:\n  mtls:\n    mode: STRICT\n"
+}

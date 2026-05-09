@@ -1,0 +1,84 @@
+---
+title: "Backup and DR with Velero"
+phase: "C"
+labId: "c8"
+---
+
+## Why Velero
+
+Kubernetes etcd stores object definitions, not the data inside PVCs. Velero provides cluster-level backup and restore by:
+
+1. Snapshotting Kubernetes object manifests (via the API server) to object storage.
+2. Triggering volume snapshots (via CSI or provider-specific hooks) for PVC data.
+3. Restoring objects into the same or a different cluster.
+
+## Backup CRD
+
+```yaml
+apiVersion: velero.io/v1
+kind: Backup
+metadata:
+  name: production-backup
+  namespace: velero
+spec:
+  includedNamespaces:
+  - production
+  excludedResources:
+  - events
+  - events.events.k8s.io
+  storageLocation: default   # BackupStorageLocation name
+  ttl: 720h                  # 30 days
+  snapshotVolumes: true
+```
+
+Key fields:
+
+| Field | Purpose |
+|---|---|
+| `includedNamespaces` | Scope the backup. Omit to back up everything. |
+| `excludedResources` | Skip ephemeral types — events are noisy and useless to restore. |
+| `storageLocation` | Which `BackupStorageLocation` (S3 bucket/prefix) to use. |
+| `ttl` | Auto-delete after this duration. |
+
+## Restore CRD
+
+```yaml
+apiVersion: velero.io/v1
+kind: Restore
+metadata:
+  name: production-restore
+  namespace: velero
+spec:
+  backupName: production-backup
+  includedNamespaces:
+  - production
+  restorePVs: true
+```
+
+Velero restores objects in dependency order (Namespaces first, then ConfigMaps/Secrets, then Deployments, etc.).
+
+## Scheduled Backups
+
+```yaml
+apiVersion: velero.io/v1
+kind: Schedule
+metadata:
+  name: daily-production
+  namespace: velero
+spec:
+  schedule: "0 2 * * *"    # 2 AM daily
+  template:
+    includedNamespaces: [production]
+    ttl: 168h               # keep 7 daily backups
+```
+
+## Disaster Recovery Runbook
+
+1. Check backup status: `kubectl get backup -n velero`
+2. Verify backup contents: `velero backup describe production-backup --details`
+3. Create Restore: `velero restore create --from-backup production-backup`
+4. Monitor: `velero restore describe production-restore --details`
+
+## Further Reading
+
+[Velero Documentation](https://velero.io/docs/)

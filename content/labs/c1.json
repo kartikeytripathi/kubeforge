@@ -1,0 +1,22 @@
+{
+  "id": "c1",
+  "title": "Register a CRD and create a custom resource",
+  "difficulty": "intermediate",
+  "estimatedMinutes": 25,
+  "realWorldIncident": false,
+  "scenario": "Your team wants to ship an \"EchoOperator\" that reflects a message from a CR's spec back into its status. Before the operator can watch anything, you need to register a CustomResourceDefinition for `Echo` objects in the `kubeforge.io` API group — then create a CR instance to prove the CRD is established.",
+  "hiddenSetup": [],
+  "starterYaml": "apiVersion: apiextensions.k8s.io/v1\nkind: CustomResourceDefinition\nmetadata:\n  name: echoes.kubeforge.io\nspec:\n  group: kubeforge.wrong\n  names:\n    kind: Echo\n    plural: echoes\n    singular: echo\n  scope: Namespaced\n  versions:\n  - name: v1\n    served: true\n    storage: true\n",
+  "objectives": [
+    { "id": "crd-exists",    "description": "CRD `echoes.kubeforge.io` is registered" },
+    { "id": "crd-group",     "description": "CRD group is `kubeforge.io` (not `kubeforge.wrong`)" },
+    { "id": "crd-namespaced","description": "CRD scope is `Namespaced`" },
+    { "id": "cr-exists",     "description": "CR `hello-echo` of kind `Echo` exists in the `default` namespace" }
+  ],
+  "hints": [
+    { "revealAfterMs": 60000,  "text": "The CRD's `spec.group` must exactly match the apiVersion prefix used in your CR. `kubeforge.wrong/v1` won't match a CR using `kubeforge.io/v1`." },
+    { "revealAfterMs": 120000, "text": "Fix `spec.group: kubeforge.wrong` → `kubeforge.io`. Then add a second YAML document (separated by `---`) that creates an Echo CR." },
+    { "revealAfterMs": 180000, "text": "Echo CR template:\n```yaml\napiVersion: kubeforge.io/v1\nkind: Echo\nmetadata:\n  name: hello-echo\n  namespace: default\nspec:\n  message: Hello from KubeForge\n```" }
+  ],
+  "solution": "apiVersion: apiextensions.k8s.io/v1\nkind: CustomResourceDefinition\nmetadata:\n  name: echoes.kubeforge.io\nspec:\n  group: kubeforge.io\n  names:\n    kind: Echo\n    plural: echoes\n    singular: echo\n  scope: Namespaced\n  versions:\n  - name: v1\n    served: true\n    storage: true\n---\napiVersion: kubeforge.io/v1\nkind: Echo\nmetadata:\n  name: hello-echo\n  namespace: default\nspec:\n  message: Hello from KubeForge\n"
+}

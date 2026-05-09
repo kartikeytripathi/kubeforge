@@ -1,0 +1,58 @@
+---
+title: "EKS Fargate"
+phase: "D"
+labId: "d11"
+---
+
+## How EKS Fargate Works
+
+EKS Fargate runs each pod on a dedicated micro-VM managed by AWS. There are no EC2 nodes to patch, autoscale, or right-size. You pay per pod vCPU/memory-second.
+
+Fargate pods are scheduled by a Fargate profile — a set of selectors that tell EKS which pods should run on Fargate instead of EC2 nodes.
+
+## Fargate Profiles
+
+A Fargate profile specifies:
+- **Cluster name** — which EKS cluster this profile belongs to
+- **Pod execution role ARN** — IAM role that Fargate uses to pull images and write logs
+- **Selectors** — one or more `(namespace, labels)` pairs; a pod must match at least one selector entirely
+
+```json
+{
+  "fargateProfileName": "backend-profile",
+  "clusterName": "prod-cluster",
+  "podExecutionRoleArn": "arn:aws:iam::123456789012:role/AmazonEKSFargatePodExecutionRole",
+  "selectors": [
+    {
+      "namespace": "backend",
+      "labels": { "tier": "api" }
+    }
+  ]
+}
+```
+
+A pod must match **all** labels in a selector plus the namespace. Extra pod labels are ignored.
+
+## Common Fargate Pitfalls
+
+**Namespace typo** — If the profile says `namespace: reports` but pods are in `reporting`, they silently fall through to EC2 nodes (or stay Pending if no EC2 capacity exists).
+
+**Missing pod execution role** — Fargate cannot pull images from ECR without this IAM role. Pods stay in `ContainerCreating`.
+
+**DaemonSets don't run on Fargate** — Fargate doesn't support DaemonSets. Monitoring agents (CloudWatch Agent, Fluent Bit) must be replaced with sidecar containers or ADOT on Fargate.
+
+**No privileged containers** — Fargate enforces a restricted security profile. Host network, host PID, and privileged mode are all blocked.
+
+## Fargate vs Managed Node Groups
+
+| | Fargate | Managed Node Groups |
+|---|---------|-------------------|
+| Node management | AWS | Shared |
+| DaemonSets | No | Yes |
+| GPU | No | Yes |
+| Cost model | Per-pod | Per-node |
+| Scaling speed | Fast | Moderate |
+
+## Further Reading
+
+[EKS Fargate](https://docs.aws.amazon.com/eks/latest/userguide/fargate.html)

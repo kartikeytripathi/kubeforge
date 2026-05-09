@@ -1,0 +1,22 @@
+{
+  "id": "d9",
+  "title": "Fix ECR lifecycle policy to protect multi-arch images",
+  "difficulty": "intermediate",
+  "estimatedMinutes": 20,
+  "realWorldIncident": true,
+  "scenario": "🔥 Multi-arch images (linux/amd64 + linux/arm64) stored as OCI index manifests are being deleted by the ECR lifecycle policy even though they are still in use. The lifecycle rule uses `imageCountMoreThan` with `tagStatus: any`, which deletes the index manifest before checking child manifests. Fix the policy to use `tagPatternList` to protect production tags.",
+  "hiddenSetup": [],
+  "starterYaml": "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: ecr-lifecycle-policy\n  namespace: default\ndata:\n  policy.json: |\n    {\n      \"rules\": [\n        {\n          \"rulePriority\": 1,\n          \"description\": \"Expire old images\",\n          \"selection\": {\n            \"tagStatus\": \"any\",\n            \"countType\": \"imageCountMoreThan\",\n            \"countNumber\": 10\n          },\n          \"action\": { \"type\": \"expire\" }\n        }\n      ]\n    }\n",
+  "objectives": [
+    { "id": "cm-exists",          "description": "ConfigMap `ecr-lifecycle-policy` exists in `default`" },
+    { "id": "has-protect-rule",   "description": "Policy contains a rule with `tagPatternList`" },
+    { "id": "protects-prod",      "description": "`tagPatternList` includes a `prod-*` or `release-*` pattern" },
+    { "id": "priority-1",         "description": "Protect rule has `rulePriority: 1` (runs before the cleanup rule)" }
+  ],
+  "hints": [
+    { "revealAfterMs": 60000,  "text": "ECR lifecycle policies cannot see cross-account references. Add a higher-priority rule (priority 1) that matches `prod-*` tags to prevent them from being deleted." },
+    { "revealAfterMs": 120000, "text": "Add a new rule with `tagStatus: tagged`, `tagPatternList: [\"prod-*\", \"release-*\"]`, and `countType: imageCountMoreThan` with a large `countNumber` (e.g. 9999) so it effectively never expires matched images." },
+    { "revealAfterMs": 180000, "text": "Insert this rule as the first entry in `rules`:\n```json\n{\n  \"rulePriority\": 1,\n  \"description\": \"Protect production tags\",\n  \"selection\": {\n    \"tagStatus\": \"tagged\",\n    \"tagPatternList\": [\"prod-*\", \"release-*\"],\n    \"countType\": \"imageCountMoreThan\",\n    \"countNumber\": 9999\n  },\n  \"action\": { \"type\": \"expire\" }\n}\n```\nThen update the cleanup rule to `rulePriority: 2`." }
+  ],
+  "solution": "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: ecr-lifecycle-policy\n  namespace: default\ndata:\n  policy.json: |\n    {\n      \"rules\": [\n        {\n          \"rulePriority\": 1,\n          \"description\": \"Protect production tags\",\n          \"selection\": {\n            \"tagStatus\": \"tagged\",\n            \"tagPatternList\": [\"prod-*\", \"release-*\"],\n            \"countType\": \"imageCountMoreThan\",\n            \"countNumber\": 9999\n          },\n          \"action\": { \"type\": \"expire\" }\n        },\n        {\n          \"rulePriority\": 2,\n          \"description\": \"Expire old images\",\n          \"selection\": {\n            \"tagStatus\": \"any\",\n            \"countType\": \"imageCountMoreThan\",\n            \"countNumber\": 10\n          },\n          \"action\": { \"type\": \"expire\" }\n        }\n      ]\n    }\n"
+}

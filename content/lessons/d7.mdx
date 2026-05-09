@@ -1,0 +1,62 @@
+---
+title: "EKS Add-ons and Version Upgrades"
+phase: "D"
+labId: "d7"
+---
+
+## EKS Version Upgrade Process
+
+EKS upgrades use a blue/green approach for the control plane, then a rolling drain for the data plane. You must:
+
+1. Check add-on compatibility with the new Kubernetes version.
+2. Update managed add-ons (VPC CNI, CoreDNS, kube-proxy) to versions compatible with the target K8s version.
+3. Upgrade the control plane.
+4. Drain and replace data plane nodes (MNG: rolling update; Karpenter: new nodes launch, old nodes drain).
+
+## PodDisruptionBudgets for Safe Drains
+
+A PDB specifies how many replicas of a workload can be voluntarily disrupted simultaneously. The kubelet drain process respects PDBs — it won't evict a pod if doing so would violate the budget.
+
+```yaml
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: postgres-pdb
+  namespace: default
+spec:
+  minAvailable: 2        # at least 2 pods must be running
+  selector:
+    matchLabels:
+      app: postgres
+```
+
+**`minAvailable`** — minimum number of pods that must be available. Safer than `maxUnavailable` for stateful workloads because it's an absolute guarantee.
+
+**`maxUnavailable`** — maximum pods that can be unavailable at once. Fine for stateless services, dangerous for databases.
+
+## PDB Pitfalls
+
+- PDB of `minAvailable: N` where N equals the total replica count will **block all drains**. Always leave headroom.
+- PDBs protect only voluntary disruptions (drains, evictions). Node failures bypass them.
+- If a PDB can never be satisfied (replicas < minAvailable), kubectl drain hangs.
+
+## Add-on Compatibility
+
+Before upgrading, check which add-on versions support the new Kubernetes version:
+
+```bash
+aws eks describe-addon-versions \
+  --kubernetes-version 1.29 \
+  --addon-name vpc-cni \
+  --query 'addons[0].addonVersions[0].addonVersion'
+```
+
+Update add-ons in this order: kube-proxy → CoreDNS → VPC CNI → others.
+
+## EKS Managed Add-ons vs Self-managed
+
+Managed add-ons can be updated via `eksctl` or the AWS console and support automatic updates. Self-managed add-ons (Helm charts) require manual version tracking.
+
+## Further Reading
+
+[EKS Cluster Upgrades](https://docs.aws.amazon.com/eks/latest/userguide/update-cluster.html)

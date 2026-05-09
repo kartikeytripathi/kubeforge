@@ -1,0 +1,64 @@
+---
+title: "GitOps with ArgoCD"
+phase: "C"
+labId: "c6"
+---
+
+## GitOps Principles
+
+GitOps treats Git as the single source of truth for cluster state. Desired state lives in a repo; a controller continuously reconciles the cluster toward it. ArgoCD is the most widely-adopted Kubernetes-native GitOps engine.
+
+## ArgoCD Application CRD
+
+An `Application` CR points ArgoCD at a Git source and a cluster destination:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: my-app
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/org/repo
+    targetRevision: main
+    path: k8s/overlays/production
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: production
+  syncPolicy:
+    automated:
+      prune: true      # delete resources removed from Git
+      selfHeal: true   # revert manual changes
+```
+
+## The prune Problem
+
+`prune: false` (the default) means resources deleted from Git stay running in the cluster. ArgoCD detects the drift endlessly and tries to sync — but has nothing to delete. With a short retry backoff, this creates a tight loop of API calls against the Git provider.
+
+## Retry Backoff
+
+```yaml
+syncPolicy:
+  retry:
+    limit: 5
+    backoff:
+      duration: 5s        # initial retry delay
+      maxDuration: 3m     # cap
+      factor: 2           # exponential multiplier
+```
+
+A 10-second initial duration means failed syncs retry rapidly. GitHub's API rate limit is 5000 requests/hour for authenticated calls — a 10-second loop from multiple Applications burns through that quickly.
+
+## App-of-Apps Pattern
+
+Scale ArgoCD by creating an Application that manages other Applications. This is the **app-of-apps** pattern — a single root Application bootstraps an entire platform.
+
+## ApplicationSet
+
+`ApplicationSet` generates multiple Applications from a template — useful for managing many clusters, environments, or tenants from one definition.
+
+## Further Reading
+
+[ArgoCD Documentation](https://argo-cd.readthedocs.io/en/stable/)
