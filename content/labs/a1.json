@@ -1,0 +1,21 @@
+{
+  "id": "a1",
+  "title": "Fix the CrashLoopBackOff",
+  "difficulty": "beginner",
+  "estimatedMinutes": 15,
+  "realWorldIncident": true,
+  "scenario": "Your on-call rotation just fired. The `webapp` pod is stuck in CrashLoopBackOff. The previous engineer hard-coded `/wrong-command` as the container entrypoint during a rushed hotfix. Traffic is down. Fix the pod spec so the container starts and stays running.",
+  "starterYaml": "apiVersion: v1\nkind: Pod\nmetadata:\n  name: webapp\n  namespace: default\n  labels:\n    app: webapp\nspec:\n  restartPolicy: Always\n  containers:\n  - name: app\n    image: nginx:1.25\n    command: [\"/wrong-command\"]\n    ports:\n    - containerPort: 80\n",
+  "objectives": [
+    { "id": "pod-exists",      "description": "Pod named `webapp` exists in the `default` namespace" },
+    { "id": "pod-running",     "description": "Pod phase is `Running`" },
+    { "id": "no-crash",        "description": "No container is in `CrashLoopBackOff`" },
+    { "id": "restart-policy",  "description": "restartPolicy is `Always`" }
+  ],
+  "hints": [
+    { "revealAfterMs": 60000,  "text": "Look at the `command` field in the container spec. nginx's default entrypoint is `/docker-entrypoint.sh` — you usually don't need to override it." },
+    { "revealAfterMs": 120000, "text": "The simplest fix: remove the `command` field entirely. nginx will use its own default entrypoint and start serving on port 80." },
+    { "revealAfterMs": 180000, "text": "If you need a custom command, use: `command: [\"/bin/sh\", \"-c\", \"nginx -g 'daemon off;'\"]`" }
+  ],
+  "solution": "apiVersion: v1\nkind: Pod\nmetadata:\n  name: webapp\n  namespace: default\n  labels:\n    app: webapp\nspec:\n  restartPolicy: Always\n  containers:\n  - name: app\n    image: nginx:1.25\n    ports:\n    - containerPort: 80\n"
+}

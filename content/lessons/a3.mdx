@@ -1,0 +1,57 @@
+---
+title: "Services: ClusterIP, NodePort, LoadBalancer"
+phase: "A"
+lessonId: "a3"
+---
+
+## Why Services exist
+
+Pods are ephemeral — they get new IPs when rescheduled. A **Service** gives you a stable DNS name and IP that routes to a set of pods selected by labels. Other pods in the cluster reach your app at `backend-svc.default.svc.cluster.local`.
+
+## Service types
+
+| Type | Reachable from | Use case |
+|---|---|---|
+| `ClusterIP` | Inside the cluster only | Internal microservice communication |
+| `NodePort` | Outside via `nodeIP:nodePort` | Dev/test without a cloud LB |
+| `LoadBalancer` | Outside via a cloud LB IP | Production internet-facing apps |
+
+## ClusterIP (the default)
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-svc
+spec:
+  type: ClusterIP      # optional — ClusterIP is the default
+  selector:
+    app: backend       # routes to pods with this label
+  ports:
+  - port: 80           # the port the Service listens on
+    targetPort: 80     # the port on the pod to forward to
+```
+
+## How selectors work
+
+The `selector` field is a label query — every key-value pair must match. If a pod has:
+```yaml
+labels:
+  app: backend
+  tier: api
+```
+
+Then `selector: { app: backend }` matches it. But `selector: { app: api }` does **not**.
+
+## Debugging no-endpoint problems
+
+If `kubectl get endpoints backend-svc` shows `<none>`:
+
+1. Check `kubectl get pods -l app=backend` — are the pods Running?
+2. Compare `service.spec.selector` with `pod.metadata.labels` — they must match exactly.
+3. Check the pod is in the **same namespace** as the Service.
+
+## Further reading
+
+- [Services](https://kubernetes.io/docs/concepts/services-networking/service/)
+- [DNS for Services and Pods](https://kubernetes.io/docs/concepts/services-networking/dns-pod-service/)

@@ -1,0 +1,36 @@
+{
+  "id": "a3",
+  "title": "Wire the frontend to the backend",
+  "difficulty": "beginner",
+  "estimatedMinutes": 20,
+  "realWorldIncident": false,
+  "scenario": "The `backend` Deployment is running (3 pods with label `app: backend`), but there's no Service in front of it. The frontend pods can't reach it by DNS. Create a ClusterIP Service named `backend-svc` that routes port 80 to the backend pods.",
+  "hiddenSetup": [
+    {
+      "kind": "Deployment",
+      "metadata": { "name": "backend", "namespace": "default" },
+      "spec": {
+        "replicas": 3,
+        "selector": { "matchLabels": { "app": "backend" } },
+        "template": {
+          "metadata": { "labels": { "app": "backend" } },
+          "spec": { "containers": [{ "name": "api", "image": "nginx:1.25", "ports": [{ "containerPort": 80 }] }] }
+        }
+      }
+    }
+  ],
+  "starterYaml": "apiVersion: v1\nkind: Service\nmetadata:\n  name: backend-svc\n  namespace: default\nspec:\n  type: ClusterIP\n  selector:\n    app: wrong-label\n  ports:\n  - port: 80\n    targetPort: 80\n",
+  "objectives": [
+    { "id": "svc-exists",        "description": "Service `backend-svc` exists in `default` namespace" },
+    { "id": "correct-selector",  "description": "Service selector includes `app: backend`" },
+    { "id": "has-endpoints",     "description": "Service routes to at least 1 healthy backend pod" },
+    { "id": "type-clusterip",    "description": "Service type is `ClusterIP`" },
+    { "id": "port-80",           "description": "Service exposes port 80" }
+  ],
+  "hints": [
+    { "revealAfterMs": 60000,  "text": "The starter YAML has `selector.app: wrong-label`. The backend pods have label `app: backend`." },
+    { "revealAfterMs": 120000, "text": "Change `selector.app` from `wrong-label` to `backend`. That's the only fix needed." },
+    { "revealAfterMs": 180000, "text": "Once fixed, the Cluster View will draw an edge from the Service to the backend pods." }
+  ],
+  "solution": "apiVersion: v1\nkind: Service\nmetadata:\n  name: backend-svc\n  namespace: default\nspec:\n  type: ClusterIP\n  selector:\n    app: backend\n  ports:\n  - port: 80\n    targetPort: 80\n"
+}

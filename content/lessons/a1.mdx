@@ -1,0 +1,60 @@
+---
+title: "Pods, containers, and restartPolicy"
+phase: "A"
+lessonId: "a1"
+---
+
+## What is a Pod?
+
+A **Pod** is the smallest deployable unit in Kubernetes — one or more containers that share a network namespace, storage volumes, and a lifecycle. Most Pods contain exactly one container. You only co-locate containers in a Pod when they are genuinely inseparable (e.g., an app and its log shipper sidecar).
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: my-app
+  namespace: default
+spec:
+  containers:
+  - name: app
+    image: nginx:1.25
+    ports:
+    - containerPort: 80
+```
+
+## Container command vs. entrypoint
+
+The `command` field overrides the Docker `ENTRYPOINT`. The `args` field overrides `CMD`. Leave both empty to use the image's defaults — this is almost always the right choice for standard images like `nginx`, `redis`, or `postgres`.
+
+**Wrong** (overriding nginx's entrypoint with something that doesn't exist):
+```yaml
+command: ["/wrong-command"]
+```
+
+**Correct** (use the image default):
+```yaml
+# No command field — nginx starts itself
+```
+
+## restartPolicy
+
+| Value | Meaning |
+|---|---|
+| `Always` | Restart the container whenever it exits (default for Pods managed by Deployments) |
+| `OnFailure` | Restart only on non-zero exit codes |
+| `Never` | Never restart — use for one-shot Jobs |
+
+## CrashLoopBackOff
+
+When a container exits repeatedly, kubelet applies exponential back-off before restarting it: 10 s, 20 s, 40 s, … up to 5 minutes. You see `CrashLoopBackOff` in `kubectl get pods`. The most common causes:
+
+1. **Wrong command** — the binary doesn't exist in the image
+2. **Bad config** — the app can't find its config file or env var
+3. **Port already in use** — another process owns the port
+
+Diagnose with: `kubectl logs <pod> --previous`
+
+## Further reading
+
+- [Kubernetes Pods](https://kubernetes.io/docs/concepts/workloads/pods/)
+- [Container lifecycle hooks](https://kubernetes.io/docs/concepts/containers/container-lifecycle-hooks/)

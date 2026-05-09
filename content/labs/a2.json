@@ -1,0 +1,23 @@
+{
+  "id": "a2",
+  "title": "Zero-downtime image rollout",
+  "difficulty": "beginner",
+  "estimatedMinutes": 20,
+  "realWorldIncident": false,
+  "scenario": "The security team flagged nginx:1.21 — it has several CVEs. You need to roll out nginx:1.25 across all 3 replicas of the `frontend` Deployment without dropping requests. The Deployment must use a RollingUpdate strategy.",
+  "hiddenSetup": [],
+  "starterYaml": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: frontend\n  namespace: default\n  labels:\n    app: frontend\nspec:\n  replicas: 3\n  selector:\n    matchLabels:\n      app: frontend\n  strategy:\n    type: RollingUpdate\n    rollingUpdate:\n      maxSurge: 1\n      maxUnavailable: 1\n  template:\n    metadata:\n      labels:\n        app: frontend\n    spec:\n      containers:\n      - name: web\n        image: nginx:1.21\n        ports:\n        - containerPort: 80\n",
+  "objectives": [
+    { "id": "deploy-exists",   "description": "Deployment `frontend` exists in `default` namespace" },
+    { "id": "three-replicas",  "description": "Deployment specifies `replicas: 3`" },
+    { "id": "new-image",       "description": "All containers use image `nginx:1.25`" },
+    { "id": "rolling-update",  "description": "strategy.type is `RollingUpdate`" },
+    { "id": "pods-running",    "description": "3 pods are Running with nginx:1.25" }
+  ],
+  "hints": [
+    { "revealAfterMs": 60000,  "text": "Only one field needs changing — `spec.template.spec.containers[0].image`." },
+    { "revealAfterMs": 120000, "text": "Change `image: nginx:1.21` to `image: nginx:1.25`. The strategy is already correct in the starter." },
+    { "revealAfterMs": 180000, "text": "After applying, watch the Cluster View — old pods terminate one at a time as new ones start." }
+  ],
+  "solution": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: frontend\n  namespace: default\n  labels:\n    app: frontend\nspec:\n  replicas: 3\n  selector:\n    matchLabels:\n      app: frontend\n  strategy:\n    type: RollingUpdate\n    rollingUpdate:\n      maxSurge: 1\n      maxUnavailable: 1\n  template:\n    metadata:\n      labels:\n        app: frontend\n    spec:\n      containers:\n      - name: web\n        image: nginx:1.25\n        ports:\n        - containerPort: 80\n"
+}
