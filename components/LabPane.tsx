@@ -11,13 +11,10 @@ import type { ObjectiveResult, VerifierFn } from "@/lib/verifiers/types";
 interface Props {
   lab: LabDefinition;
   verifier: VerifierFn;
-  /** MDX content rendered on the server, passed as JSX */
-  conceptContent: React.ReactNode;
-  /** Optional YAML to pre-apply as "hidden cluster setup" */
   hiddenSetupYaml?: string;
 }
 
-export function LabPane({ lab, verifier, conceptContent, hiddenSetupYaml }: Props) {
+export function LabPane({ lab, verifier, hiddenSetupYaml }: Props) {
   const [yaml, setYaml] = useState(lab.starterYaml);
   const [results, setResults] = useState<ObjectiveResult[] | null>(null);
   const [failCount, setFailCount] = useState(0);
@@ -86,7 +83,7 @@ export function LabPane({ lab, verifier, conceptContent, hiddenSetupYaml }: Prop
   }, [reset, lab.starterYaml]);
 
   return (
-    <div className="flex h-full flex-col overflow-hidden">
+    <div className="flex flex-1 flex-col overflow-hidden">
       {/* Lab header */}
       <div className="flex items-center justify-between border-b border-surface-600 px-4 py-2">
         <div className="flex items-center gap-3">
@@ -110,19 +107,8 @@ export function LabPane({ lab, verifier, conceptContent, hiddenSetupYaml }: Prop
         </button>
       </div>
 
-      {/* Three-panel layout */}
+      {/* Editor + canvas */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Left: Concept + scenario */}
-        <div className="w-[340px] shrink-0 overflow-y-auto border-r border-surface-600 bg-surface-900 px-5 py-4">
-          <div className="mb-4 rounded-lg border border-amber-600/30 bg-amber-600/10 p-3">
-            <p className="text-xs font-semibold uppercase tracking-wider text-amber-400 mb-1">Scenario</p>
-            <p className="text-xs text-amber-200/80 leading-relaxed">{lab.scenario}</p>
-          </div>
-          <div className="prose prose-sm prose-invert max-w-none text-gray-300 [&_h2]:text-base [&_h2]:font-semibold [&_h2]:text-white [&_h2]:mt-4 [&_code]:text-teal-400 [&_pre]:bg-surface-700 [&_pre]:text-xs [&_table]:text-xs [&_a]:text-teal-400">
-            {conceptContent}
-          </div>
-        </div>
-
         {/* Center: YAML editor */}
         <div className="flex flex-1 flex-col overflow-hidden">
           <div className="flex-1 overflow-hidden p-2">

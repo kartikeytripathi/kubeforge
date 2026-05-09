@@ -18,20 +18,16 @@ interface Props {
   lab: LabDefinition;
   labId: string;
   hiddenSetupYaml?: string;
-  children: React.ReactNode; // server-rendered MDX concept content
 }
 
-export function LessonClient({ lab, labId, hiddenSetupYaml, children }: Props) {
+export function LessonClient({ lab, labId, hiddenSetupYaml }: Props) {
   const verifier = VERIFIERS[labId] ?? noopVerifier;
 
   return (
-    <div className="h-full overflow-hidden -m-6">
-      <LabPane
-        lab={lab}
-        verifier={verifier}
-        conceptContent={children}
-        hiddenSetupYaml={hiddenSetupYaml}
-      />
-    </div>
+    <LabPane
+      lab={lab}
+      verifier={verifier}
+      hiddenSetupYaml={hiddenSetupYaml}
+    />
   );
 }
