@@ -1,0 +1,78 @@
+---
+title: "Incident response: Diagnosing and fixing a broken production cluster"
+phase: "A"
+lessonId: "a8"
+---
+
+## Production incidents are multi-layered
+
+Real outages rarely have one root cause. A `503 Service Unavailable` might trace back to a scaled-down Deployment, a misconfigured Service selector, a Pending PVC blocking pod startup, and a missing ConfigMap key — all at once.
+
+## The diagnostic loop
+
+When production is down, work layer by layer:
+
+```
+1. Service → has endpoints?
+2. Pods    → Running? CrashLoop? Pending?
+3. Storage → PVCs Bound?
+4. Config  → ConfigMaps/Secrets present with correct keys?
+5. Network → Node Ready? DNS resolving?
+```
+
+## Common failure patterns
+
+### Scale-to-zero (human error)
+```yaml
+spec:
+  replicas: 0   # ← someone set this during an "emergency maintenance"
+```
+Fix: `kubectl scale deployment api --replicas=3`
+
+### Selector mismatch (label drift)
+```yaml
+# Service selector
+selector:
+  app: api-wrong   # ← typo after a rename
+
+# Pod labels
+labels:
+  app: api         # ← doesn't match
+```
+Result: `kubectl get endpoints api-svc` shows `<none>`.
+
+### PVC stuck Pending
+A PVC in `Pending` means no StorageClass matches or dynamic provisioning failed. Check:
+```
+kubectl describe pvc db-pvc
+# Events: "no persistent volumes available for this claim"
+```
+Fix: Create the correct StorageClass, or create a matching PV manually.
+
+### Missing ConfigMap key
+If a pod's env references `configMapKeyRef` with a missing key, the pod won't start:
+```
+# kubectl describe pod api-xxx
+# Events: "Error: couldn't find key DB_HOST in ConfigMap default/api-config"
+```
+Fix: Add the missing key to the ConfigMap and re-apply.
+
+## The fix order matters
+
+1. Fix Deployments first (get pods scheduling)
+2. Fix Services (restore traffic routing)
+3. Fix storage (unblock Pending pods)
+4. Fix ConfigMaps/Secrets (unblock ContainerCreating pods)
+
+Each fix can be applied independently — Kubernetes continuously reconciles.
+
+## After the incident
+
+- Write a postmortem: timeline, root cause, remediation, prevention
+- Add alerts for `deployment.spec.replicas == 0`, endpoint count drops, PVC in Pending > 5m
+- On EKS: use CloudWatch Container Insights for metrics and AWS Config rules to prevent scale-to-zero
+
+## Further reading
+
+- [Debugging Pods](https://kubernetes.io/docs/tasks/debug/debug-application/debug-pods/)
+- [Debugging Services](https://kubernetes.io/docs/tasks/debug/debug-application/debug-service/)

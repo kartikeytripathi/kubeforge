@@ -1,0 +1,99 @@
+---
+title: "ConfigMaps & Secrets: Externalizing configuration"
+phase: "A"
+lessonId: "a4"
+---
+
+## Why externalize configuration?
+
+Baking config into container images means rebuilding and redeploying for every environment change. Kubernetes solves this with two objects: **ConfigMap** (plain text) and **Secret** (base64-encoded, designed for sensitive data).
+
+## ConfigMap
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: default
+data:
+  APP_ENV: production
+  LOG_LEVEL: info
+  MAX_CONNECTIONS: "100"
+```
+
+Pods can consume ConfigMap data as **environment variables** or **mounted files**.
+
+## Secret
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: app-secret
+  namespace: default
+type: Opaque
+data:
+  password: c2VjcmV0MTIz   # base64("secret123")
+  api-key: dG9rZW4tYWJj    # base64("token-abc")
+```
+
+`type: Opaque` is the generic secret type. Others include `kubernetes.io/tls` for TLS certs and `kubernetes.io/dockerconfigjson` for registry credentials.
+
+## Consuming in a pod
+
+```yaml
+env:
+- name: APP_ENV
+  valueFrom:
+    configMapKeyRef:
+      name: app-config
+      key: APP_ENV
+- name: DB_PASSWORD
+  valueFrom:
+    secretKeyRef:
+      name: app-secret
+      key: password
+```
+
+If the referenced ConfigMap or Secret doesn't exist, the pod stays in `ContainerCreating`. Always create config objects **before** the pods that reference them.
+
+## Whole-object injection
+
+You can inject every key from a ConfigMap as env vars:
+
+```yaml
+envFrom:
+- configMapRef:
+    name: app-config
+```
+
+Or mount the entire ConfigMap as a directory of files:
+
+```yaml
+volumes:
+- name: config-vol
+  configMap:
+    name: app-config
+volumeMounts:
+- name: config-vol
+  mountPath: /etc/config
+```
+
+Each key becomes a file at `/etc/config/<key>`, with the value as the file contents.
+
+## Key differences
+
+| | ConfigMap | Secret |
+|---|---|---|
+| Encoding | Plain text | Base64 |
+| Use case | Non-sensitive config | Passwords, tokens, certs |
+| RBAC | Standard | Tighter access recommended |
+| etcd storage | Unencrypted by default | Unencrypted by default* |
+
+*On EKS, enable envelope encryption to protect Secrets at rest.
+
+## Further reading
+
+- [ConfigMaps](https://kubernetes.io/docs/concepts/configuration/configmap/)
+- [Secrets](https://kubernetes.io/docs/concepts/configuration/secret/)

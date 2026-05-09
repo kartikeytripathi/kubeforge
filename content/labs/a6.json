@@ -1,0 +1,23 @@
+{
+  "id": "a6",
+  "title": "Namespaces: Isolating teams and environments",
+  "difficulty": "intermediate",
+  "estimatedMinutes": 20,
+  "realWorldIncident": false,
+  "scenario": "Your platform team wants a dedicated `staging` namespace for the QA team. Create the namespace, then deploy a `frontend` Deployment (2 replicas) and a ClusterIP Service in it — isolated from the `default` namespace.",
+  "hiddenSetup": [],
+  "starterYaml": "apiVersion: v1\nkind: Namespace\nmetadata:\n  name: staging\n---\napiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: frontend\n  namespace: staging\nspec:\n  replicas: 2\n  selector:\n    matchLabels:\n      app: frontend\n  template:\n    metadata:\n      labels:\n        app: frontend\n    spec:\n      containers:\n      - name: web\n        image: nginx:1.25\n        ports:\n        - containerPort: 80\n---\napiVersion: v1\nkind: Service\nmetadata:\n  name: frontend-svc\n  namespace: staging\nspec:\n  type: ClusterIP\n  selector:\n    app: frontend\n  ports:\n  - port: 80\n    targetPort: 80\n",
+  "objectives": [
+    { "id": "ns-exists",       "description": "Namespace `staging` exists and is Active" },
+    { "id": "deploy-exists",   "description": "Deployment `frontend` exists in `staging` namespace" },
+    { "id": "deploy-ready",    "description": "Deployment has 2 ready replicas" },
+    { "id": "svc-exists",      "description": "Service `frontend-svc` exists in `staging` namespace" },
+    { "id": "svc-endpoints",   "description": "Service routes to at least 1 Running pod in `staging`" }
+  ],
+  "hints": [
+    { "revealAfterMs": 60000,  "text": "All three resources (Namespace, Deployment, Service) must set `metadata.namespace: staging`. The Namespace resource itself does not need a namespace field." },
+    { "revealAfterMs": 120000, "text": "The Service selector must match the Deployment pod labels exactly: `app: frontend`." },
+    { "revealAfterMs": 180000, "text": "Resources in `staging` are invisible to workloads in `default`. This is the isolation Kubernetes namespaces provide." }
+  ],
+  "solution": "apiVersion: v1\nkind: Namespace\nmetadata:\n  name: staging\n---\napiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: frontend\n  namespace: staging\nspec:\n  replicas: 2\n  selector:\n    matchLabels:\n      app: frontend\n  template:\n    metadata:\n      labels:\n        app: frontend\n    spec:\n      containers:\n      - name: web\n        image: nginx:1.25\n        ports:\n        - containerPort: 80\n---\napiVersion: v1\nkind: Service\nmetadata:\n  name: frontend-svc\n  namespace: staging\nspec:\n  type: ClusterIP\n  selector:\n    app: frontend\n  ports:\n  - port: 80\n    targetPort: 80\n"
+}

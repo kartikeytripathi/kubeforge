@@ -1,0 +1,37 @@
+{
+  "id": "a5",
+  "title": "PersistentVolumeClaims: Giving pods durable storage",
+  "difficulty": "intermediate",
+  "estimatedMinutes": 25,
+  "realWorldIncident": true,
+  "scenario": "The `postgres` pod is `Pending` because it tries to mount a PersistentVolumeClaim named `db-pvc` that doesn't exist yet. Create a StorageClass, a PersistentVolumeClaim (10Gi, ReadWriteOnce), and watch the PVC bind automatically via dynamic provisioning.",
+  "hiddenSetup": [
+    {
+      "kind": "Pod",
+      "metadata": { "name": "postgres", "namespace": "default", "labels": { "app": "postgres" } },
+      "spec": {
+        "containers": [{
+          "name": "db",
+          "image": "postgres:15",
+          "volumeMounts": [{ "name": "data", "mountPath": "/var/lib/postgresql/data" }]
+        }],
+        "volumes": [{ "name": "data", "persistentVolumeClaim": { "claimName": "db-pvc" } }],
+        "restartPolicy": "Always"
+      }
+    }
+  ],
+  "starterYaml": "apiVersion: storage.k8s.io/v1\nkind: StorageClass\nmetadata:\n  name: fast-ssd\nprovisioner: kubernetes.io/no-provisioner\nvolumeBindingMode: Immediate\nreclaimPolicy: Delete\n---\napiVersion: v1\nkind: PersistentVolumeClaim\nmetadata:\n  name: db-pvc\n  namespace: default\nspec:\n  storageClassName: fast-ssd\n  accessModes:\n  - ReadWriteOnce\n  resources:\n    requests:\n      storage: 10Gi\n",
+  "objectives": [
+    { "id": "sc-exists",    "description": "StorageClass `fast-ssd` exists" },
+    { "id": "pvc-exists",   "description": "PVC `db-pvc` exists in `default` namespace" },
+    { "id": "pvc-bound",    "description": "PVC `db-pvc` is in `Bound` phase" },
+    { "id": "pvc-size",     "description": "PVC requests at least 1Gi of storage" },
+    { "id": "pod-running",  "description": "Pod `postgres` is in Running phase" }
+  ],
+  "hints": [
+    { "revealAfterMs": 60000,  "text": "Apply the StorageClass first — the PVC can't reference it until it exists. You can apply both in one multi-doc YAML." },
+    { "revealAfterMs": 120000, "text": "The PVC `storageClassName` must exactly match the StorageClass `metadata.name`: `fast-ssd`." },
+    { "revealAfterMs": 180000, "text": "Once the PVC is Bound, the pod will be scheduled and transition to Running. Check the Cluster View to see PVC → pod relationships." }
+  ],
+  "solution": "apiVersion: storage.k8s.io/v1\nkind: StorageClass\nmetadata:\n  name: fast-ssd\nprovisioner: kubernetes.io/no-provisioner\nvolumeBindingMode: Immediate\nreclaimPolicy: Delete\n---\napiVersion: v1\nkind: PersistentVolumeClaim\nmetadata:\n  name: db-pvc\n  namespace: default\nspec:\n  storageClassName: fast-ssd\n  accessModes:\n  - ReadWriteOnce\n  resources:\n    requests:\n      storage: 10Gi\n"
+}

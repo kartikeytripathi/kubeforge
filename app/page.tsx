@@ -1,13 +1,32 @@
+"use client";
+
 import Link from "next/link";
+import { useProgressStore } from "@/lib/progress-store";
 
 export default function HomePage() {
+  const completedLabIds = useProgressStore((s) => s.completedLabIds());
+  const streak = useProgressStore((s) => s.streak());
+  const activityDays = useProgressStore((s) => s.activityDays());
+  const ckaReadiness = useProgressStore((s) => s.ckaReadiness());
+  const eksReadiness = useProgressStore((s) => s.eksReadiness());
+  const totalAttempts = useProgressStore((s) => s.attempts.length);
+
+  const activitySet = new Set(activityDays);
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const heatmapDays = Array.from({ length: 364 }, (_, i) => {
+    const d = new Date(today);
+    d.setDate(d.getDate() - (363 - i));
+    return d.toISOString().slice(0, 10);
+  });
+
   return (
     <div className="mx-auto max-w-4xl space-y-10 py-8">
       {/* Hero */}
       <section className="space-y-3">
         <h1 className="text-4xl font-bold tracking-tight text-white">
-          Welcome to{" "}
-          <span className="text-teal-600">KubeForge</span>
+          Welcome to <span className="text-teal-600">KubeForge</span>
         </h1>
         <p className="text-lg text-gray-400">
           Hands-on Kubernetes &amp; EKS learning. Every concept has a lab.
@@ -15,41 +34,67 @@ export default function HomePage() {
         </p>
       </section>
 
-      {/* Quick stats — placeholder */}
+      {/* Live stats */}
       <section className="grid grid-cols-3 gap-4">
         {[
-          { label: "CKA Readiness", value: "0%", color: "text-teal-400" },
-          { label: "EKS Readiness", value: "0%", color: "text-blue-400" },
-          { label: "Current Streak", value: "0 days", color: "text-amber-400" },
+          { label: "CKA Readiness", value: `${ckaReadiness}%`, color: "text-teal-400" },
+          { label: "EKS Readiness", value: `${eksReadiness}%`, color: "text-blue-400" },
+          {
+            label: "Current Streak",
+            value: `${streak} day${streak !== 1 ? "s" : ""}`,
+            color: "text-amber-400",
+          },
         ].map((stat) => (
-          <div
-            key={stat.label}
-            className="rounded-xl border border-surface-600 bg-surface-800 p-5"
-          >
+          <div key={stat.label} className="rounded-xl border border-surface-600 bg-surface-800 p-5">
             <p className="text-sm text-gray-400">{stat.label}</p>
             <p className={`mt-1 text-3xl font-bold ${stat.color}`}>{stat.value}</p>
           </div>
         ))}
       </section>
 
-      {/* Activity heatmap placeholder */}
+      {/* Completed labs */}
+      {completedLabIds.length > 0 && (
+        <section className="rounded-xl border border-surface-600 bg-surface-800 p-5">
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-gray-400">
+            Completed Labs ({completedLabIds.length})
+          </h2>
+          <div className="flex flex-wrap gap-2">
+            {completedLabIds.map((id) => (
+              <span
+                key={id}
+                className="rounded-full bg-teal-600/20 px-3 py-1 text-xs font-semibold text-teal-400"
+              >
+                {id.toUpperCase()}
+              </span>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Activity heatmap */}
       <section className="rounded-xl border border-surface-600 bg-surface-800 p-5">
         <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-gray-400">
           Activity — last 52 weeks
         </h2>
-        {/* TODO(phase-2): render real SQLite-backed heatmap */}
         <div className="grid grid-cols-[repeat(52,1fr)] gap-1">
-          {Array.from({ length: 364 }).map((_, i) => (
+          {heatmapDays.map((day) => (
             <div
-              key={i}
-              className="aspect-square w-full rounded-sm bg-surface-700"
+              key={day}
+              title={day}
+              className={`aspect-square w-full rounded-sm ${
+                activitySet.has(day) ? "bg-teal-500" : "bg-surface-700"
+              }`}
             />
           ))}
         </div>
-        <p className="mt-3 text-xs text-gray-500">Start a lab to begin tracking your progress.</p>
+        <p className="mt-3 text-xs text-gray-500">
+          {totalAttempts > 0
+            ? `${totalAttempts} attempt${totalAttempts !== 1 ? "s" : ""} across ${completedLabIds.length} completed lab${completedLabIds.length !== 1 ? "s" : ""}.`
+            : "Start a lab to begin tracking your progress."}
+        </p>
       </section>
 
-      {/* Continue / start CTA */}
+      {/* CTAs */}
       <section className="flex gap-4">
         <Link
           href="/curriculum"
@@ -58,17 +103,12 @@ export default function HomePage() {
           Browse Curriculum
         </Link>
         <Link
-          href="/curriculum"
+          href="/lesson/a1"
           className="rounded-lg border border-surface-600 px-5 py-2.5 text-sm font-semibold text-gray-300 hover:bg-surface-700 transition-colors"
         >
           Start Lab A1 →
         </Link>
       </section>
-
-      {/* Phase indicator */}
-      <p className="text-xs text-gray-600">
-        Build Phase 0 — Scaffolding. Labs unlock in Phase 1.
-      </p>
     </div>
   );
 }

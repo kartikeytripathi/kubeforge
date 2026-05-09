@@ -13,6 +13,25 @@ export interface ContainerPort {
 export interface EnvVar {
   name: string;
   value?: string;
+  valueFrom?: {
+    configMapKeyRef?: { name: string; key: string };
+    secretKeyRef?: { name: string; key: string };
+  };
+}
+
+export interface VolumeMount {
+  name: string;
+  mountPath: string;
+  subPath?: string;
+  readOnly?: boolean;
+}
+
+export interface Volume {
+  name: string;
+  configMap?: { name: string };
+  secret?: { secretName: string };
+  persistentVolumeClaim?: { claimName: string };
+  emptyDir?: Record<string, never>;
 }
 
 export interface ResourceList {
@@ -27,6 +46,7 @@ export interface ContainerSpec {
   args?: string[];
   ports?: ContainerPort[];
   env?: EnvVar[];
+  volumeMounts?: VolumeMount[];
   resources?: {
     requests?: ResourceList;
     limits?: ResourceList;
@@ -42,7 +62,7 @@ export interface ContainerStatus {
   restartCount: number;
   state: {
     type: ContainerStateType;
-    reason?: string; // "CrashLoopBackOff" | "Error" | "OOMKilled" | "ImagePullBackOff"
+    reason?: string;
     message?: string;
   };
 }
@@ -63,6 +83,7 @@ export interface SimPod {
     restartPolicy: "Always" | "OnFailure" | "Never";
     nodeName?: string;
     nodeSelector?: Labels;
+    volumes?: Volume[];
   };
   status: {
     phase: PodPhase;
@@ -70,7 +91,6 @@ export interface SimPod {
     podIP?: string;
     hostIP?: string;
     startTime?: number;
-    // internal sim fields
     _tick: number;
     _scheduledTick?: number;
     _runningTick?: number;
@@ -97,6 +117,7 @@ export interface SimDeployment {
         containers: ContainerSpec[];
         restartPolicy?: "Always";
         nodeSelector?: Labels;
+        volumes?: Volume[];
       };
     };
     strategy?: {
@@ -136,6 +157,7 @@ export interface SimReplicaSet {
       spec: {
         containers: ContainerSpec[];
         nodeSelector?: Labels;
+        volumes?: Volume[];
       };
     };
   };
@@ -188,7 +210,7 @@ export interface SimNode {
   };
   status: {
     phase: "Ready" | "NotReady";
-    allocatable: { cpu: number; memory: number }; // cpu in millicores, memory in MiB
+    allocatable: { cpu: number; memory: number };
     capacity: { cpu: number; memory: number };
     addresses: { type: string; address: string }[];
   };
@@ -209,6 +231,57 @@ export interface SimSecret {
   type?: string;
 }
 
+export type PVCPhase = "Pending" | "Bound" | "Released" | "Failed";
+export type PVPhase = "Available" | "Bound" | "Released" | "Failed";
+
+export interface SimPersistentVolumeClaim {
+  kind: "PersistentVolumeClaim";
+  apiVersion: "v1";
+  metadata: { name: string; namespace: string; labels: Labels; uid: string; creationTimestamp: number };
+  spec: {
+    accessModes: string[];
+    resources: { requests: { storage: string } };
+    storageClassName?: string;
+    volumeName?: string;
+  };
+  status: {
+    phase: PVCPhase;
+    capacity?: { storage: string };
+    accessModes?: string[];
+  };
+}
+
+export interface SimPersistentVolume {
+  kind: "PersistentVolume";
+  apiVersion: "v1";
+  metadata: { name: string; labels: Labels; uid: string; creationTimestamp: number };
+  spec: {
+    capacity: { storage: string };
+    accessModes: string[];
+    storageClassName?: string;
+    hostPath?: { path: string };
+    persistentVolumeReclaimPolicy?: "Retain" | "Recycle" | "Delete";
+  };
+  status: { phase: PVPhase };
+}
+
+export interface SimStorageClass {
+  kind: "StorageClass";
+  apiVersion: "storage.k8s.io/v1";
+  metadata: { name: string; labels: Labels; uid: string; creationTimestamp: number; annotations?: Record<string, string> };
+  provisioner: string;
+  volumeBindingMode?: "Immediate" | "WaitForFirstConsumer";
+  reclaimPolicy?: "Retain" | "Delete";
+  allowVolumeExpansion?: boolean;
+}
+
+export interface SimNamespace {
+  kind: "Namespace";
+  apiVersion: "v1";
+  metadata: { name: string; labels: Labels; uid: string; creationTimestamp: number };
+  status: { phase: "Active" | "Terminating" };
+}
+
 export interface ClusterEvent {
   uid: string;
   type: "Normal" | "Warning";
@@ -227,5 +300,9 @@ export interface ClusterState {
   services: SimService[];
   configMaps: SimConfigMap[];
   secrets: SimSecret[];
+  persistentVolumes: SimPersistentVolume[];
+  persistentVolumeClaims: SimPersistentVolumeClaim[];
+  storageClasses: SimStorageClass[];
+  namespaces: SimNamespace[];
   events: ClusterEvent[];
 }

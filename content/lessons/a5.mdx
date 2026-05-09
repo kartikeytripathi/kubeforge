@@ -1,0 +1,87 @@
+---
+title: "PersistentVolumes & PVCs: Durable storage"
+phase: "A"
+lessonId: "a5"
+---
+
+## The storage problem
+
+Containers are stateless by design — their filesystem is ephemeral. When a pod restarts, local data is gone. For databases and stateful workloads you need **persistent storage** that outlives any individual pod.
+
+## The three objects
+
+| Object | Role |
+|---|---|
+| `StorageClass` | Describes a "class" of storage (SSD, HDD, network) and its provisioner |
+| `PersistentVolume (PV)` | A piece of actual storage, either pre-provisioned or dynamically created |
+| `PersistentVolumeClaim (PVC)` | A pod's *request* for storage — matched to a PV |
+
+## StorageClass
+
+```yaml
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: fast-ssd
+provisioner: kubernetes.io/no-provisioner
+volumeBindingMode: Immediate
+reclaimPolicy: Delete
+```
+
+On EKS, you'd use `provisioner: ebs.csi.aws.com` for EBS-backed storage.
+
+`volumeBindingMode: Immediate` provisions the PV as soon as the PVC is created. `WaitForFirstConsumer` waits until a pod is scheduled (useful for zone-aware provisioning).
+
+## PersistentVolumeClaim
+
+```yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: db-pvc
+  namespace: default
+spec:
+  storageClassName: fast-ssd
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+```
+
+**Access modes:**
+- `ReadWriteOnce` (RWO) — mounted by one node at a time (most common for block storage)
+- `ReadOnlyMany` (ROX) — mounted read-only by many nodes
+- `ReadWriteMany` (RWX) — mounted read-write by many nodes (requires a network filesystem)
+
+## Mounting in a pod
+
+```yaml
+spec:
+  volumes:
+  - name: data
+    persistentVolumeClaim:
+      claimName: db-pvc
+  containers:
+  - name: db
+    image: postgres:15
+    volumeMounts:
+    - name: data
+      mountPath: /var/lib/postgresql/data
+```
+
+If the PVC doesn't exist or is in `Pending` phase, the pod stays `Pending` with event: `"waiting for volume to be created"`.
+
+## PVC lifecycle
+
+```
+PVC created → Pending → Bound (PV found or dynamically provisioned)
+Pod deleted  → PVC remains (data is safe)
+PVC deleted  → PV released → reclaim policy applied (Retain keeps data, Delete removes it)
+```
+
+## Further reading
+
+- [Persistent Volumes](https://kubernetes.io/docs/concepts/storage/persistent-volumes/)
+- [Storage Classes](https://kubernetes.io/docs/concepts/storage/storage-classes/)
+- [EBS CSI Driver on EKS](https://docs.aws.amazon.com/eks/latest/userguide/ebs-csi.html)

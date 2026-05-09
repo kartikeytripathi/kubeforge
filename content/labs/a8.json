@@ -1,0 +1,51 @@
+{
+  "id": "a8",
+  "title": "Boss Lab: Production incident — four things are broken",
+  "difficulty": "advanced",
+  "estimatedMinutes": 45,
+  "realWorldIncident": true,
+  "scenario": "ALERT: production is down. Four issues exist simultaneously: (1) the `api` Deployment has 0 replicas, (2) the `api-svc` Service selector is wrong, (3) the `db-pvc` PVC is Pending (no StorageClass), and (4) the `api-config` ConfigMap is missing the required `DB_HOST` key. Fix all four issues.",
+  "hiddenSetup": [
+    {
+      "kind": "Deployment",
+      "metadata": { "name": "api", "namespace": "default" },
+      "spec": {
+        "replicas": 0,
+        "selector": { "matchLabels": { "app": "api" } },
+        "template": {
+          "metadata": { "labels": { "app": "api" } },
+          "spec": { "containers": [{ "name": "api", "image": "node:20-alpine" }] }
+        }
+      }
+    },
+    {
+      "kind": "Service",
+      "metadata": { "name": "api-svc", "namespace": "default" },
+      "spec": {
+        "type": "ClusterIP",
+        "selector": { "app": "wrong" },
+        "ports": [{ "port": 80, "targetPort": 3000 }]
+      }
+    },
+    {
+      "kind": "ConfigMap",
+      "metadata": { "name": "api-config", "namespace": "default" },
+      "data": { "APP_ENV": "production" }
+    }
+  ],
+  "starterYaml": "# Fix all four issues below\n# 1. Scale the api Deployment to 3 replicas\n# 2. Fix the api-svc selector to match app: api\n# 3. Create a StorageClass and PVC named db-pvc\n# 4. Add DB_HOST key to the api-config ConfigMap\n\napiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: api\n  namespace: default\nspec:\n  replicas: 0\n  selector:\n    matchLabels:\n      app: api\n  template:\n    metadata:\n      labels:\n        app: api\n    spec:\n      containers:\n      - name: api\n        image: node:20-alpine\n---\napiVersion: v1\nkind: Service\nmetadata:\n  name: api-svc\n  namespace: default\nspec:\n  type: ClusterIP\n  selector:\n    app: wrong\n  ports:\n  - port: 80\n    targetPort: 3000\n---\napiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: api-config\n  namespace: default\ndata:\n  APP_ENV: production\n",
+  "objectives": [
+    { "id": "deploy-scaled",   "description": "Deployment `api` has at least 1 ready replica" },
+    { "id": "svc-selector",    "description": "Service `api-svc` selector matches `app: api`" },
+    { "id": "svc-endpoints",   "description": "Service `api-svc` routes to at least 1 Running pod" },
+    { "id": "pvc-bound",       "description": "PVC `db-pvc` exists and is Bound" },
+    { "id": "cm-db-host",      "description": "ConfigMap `api-config` has key `DB_HOST`" }
+  ],
+  "hints": [
+    { "revealAfterMs": 90000,  "text": "Start with the Deployment: change `replicas: 0` to `replicas: 3` and apply." },
+    { "revealAfterMs": 180000, "text": "Fix the Service selector: change `app: wrong` to `app: api` so it can route to the Deployment pods." },
+    { "revealAfterMs": 270000, "text": "For the PVC, add a StorageClass (e.g. `fast-ssd`) and a PVC named `db-pvc` with `storageClassName: fast-ssd`. Dynamic provisioning will bind it." },
+    { "revealAfterMs": 360000, "text": "For the ConfigMap, add `DB_HOST: postgres-svc.default.svc.cluster.local` to the `data` section and re-apply." }
+  ],
+  "solution": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: api\n  namespace: default\nspec:\n  replicas: 3\n  selector:\n    matchLabels:\n      app: api\n  template:\n    metadata:\n      labels:\n        app: api\n    spec:\n      containers:\n      - name: api\n        image: node:20-alpine\n---\napiVersion: v1\nkind: Service\nmetadata:\n  name: api-svc\n  namespace: default\nspec:\n  type: ClusterIP\n  selector:\n    app: api\n  ports:\n  - port: 80\n    targetPort: 3000\n---\napiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: api-config\n  namespace: default\ndata:\n  APP_ENV: production\n  DB_HOST: postgres-svc.default.svc.cluster.local\n---\napiVersion: storage.k8s.io/v1\nkind: StorageClass\nmetadata:\n  name: fast-ssd\nprovisioner: kubernetes.io/no-provisioner\nvolumeBindingMode: Immediate\nreclaimPolicy: Delete\n---\napiVersion: v1\nkind: PersistentVolumeClaim\nmetadata:\n  name: db-pvc\n  namespace: default\nspec:\n  storageClassName: fast-ssd\n  accessModes:\n  - ReadWriteOnce\n  resources:\n    requests:\n      storage: 5Gi\n"
+}

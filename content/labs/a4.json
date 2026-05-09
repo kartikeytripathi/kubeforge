@@ -1,0 +1,39 @@
+{
+  "id": "a4",
+  "title": "ConfigMaps & Secrets: Injecting configuration",
+  "difficulty": "beginner",
+  "estimatedMinutes": 20,
+  "realWorldIncident": true,
+  "scenario": "A `web` pod references a ConfigMap named `app-config` (for the `APP_ENV` env var) and a Secret named `app-secret` (for `DB_PASSWORD`). Both are missing — the pod stays in a `ContainerCreating` loop because the volume mounts can't resolve. Create the ConfigMap and Secret so the pod can start.",
+  "hiddenSetup": [
+    {
+      "kind": "Pod",
+      "metadata": { "name": "web", "namespace": "default", "labels": { "app": "web" } },
+      "spec": {
+        "containers": [{
+          "name": "web",
+          "image": "nginx:1.25",
+          "env": [
+            { "name": "APP_ENV", "valueFrom": { "configMapKeyRef": { "name": "app-config", "key": "APP_ENV" } } },
+            { "name": "DB_PASSWORD", "valueFrom": { "secretKeyRef": { "name": "app-secret", "key": "password" } } }
+          ]
+        }],
+        "restartPolicy": "Always"
+      }
+    }
+  ],
+  "starterYaml": "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: app-config\n  namespace: default\ndata:\n  APP_ENV: production\n---\napiVersion: v1\nkind: Secret\nmetadata:\n  name: app-secret\n  namespace: default\ntype: Opaque\ndata:\n  password: c2VjcmV0MTIz\n",
+  "objectives": [
+    { "id": "configmap-exists",  "description": "ConfigMap `app-config` exists in `default` namespace" },
+    { "id": "configmap-key",     "description": "ConfigMap has key `APP_ENV` with value `production`" },
+    { "id": "secret-exists",     "description": "Secret `app-secret` exists in `default` namespace" },
+    { "id": "secret-key",        "description": "Secret has key `password`" },
+    { "id": "pod-running",       "description": "Pod `web` is in Running phase" }
+  ],
+  "hints": [
+    { "revealAfterMs": 60000,  "text": "Apply both the ConfigMap and the Secret together — you can put them in one YAML file separated by `---`." },
+    { "revealAfterMs": 120000, "text": "The ConfigMap key must be exactly `APP_ENV` and the Secret key must be exactly `password` — the pod's env references are case-sensitive." },
+    { "revealAfterMs": 180000, "text": "Once both resources exist, re-apply the starter YAML. The pod should transition from Pending → Running within a few ticks." }
+  ],
+  "solution": "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: app-config\n  namespace: default\ndata:\n  APP_ENV: production\n---\napiVersion: v1\nkind: Secret\nmetadata:\n  name: app-secret\n  namespace: default\ntype: Opaque\ndata:\n  password: c2VjcmV0MTIz\n"
+}

@@ -1,9 +1,24 @@
 import yaml from "js-yaml";
-import type { ClusterState, SimNode, SimPod, SimDeployment, SimReplicaSet, SimService, Labels } from "./types";
+import type {
+  ClusterState,
+  SimNode,
+  SimPod,
+  SimDeployment,
+  SimReplicaSet,
+  SimService,
+  SimConfigMap,
+  SimSecret,
+  SimNamespace,
+  SimPersistentVolume,
+  SimPersistentVolumeClaim,
+  SimStorageClass,
+  Labels,
+} from "./types";
 import { generateUid, labelsMatch } from "./utils";
 import {
   reconcileDeployments,
   reconcileReplicaSets,
+  reconcilePersistentVolumeClaims,
   schedulePods,
   updatePodStatus,
 } from "./reconciler";
@@ -53,6 +68,10 @@ function defaultState(): ClusterState {
     services: [],
     configMaps: [],
     secrets: [],
+    persistentVolumes: [],
+    persistentVolumeClaims: [],
+    storageClasses: [],
+    namespaces: [],
     events: [],
   };
 }
@@ -183,8 +202,142 @@ function applyManifest(state: ClusterState, doc: any): void {
       break;
     }
 
+    case "ConfigMap": {
+      const existing = state.configMaps.findIndex(
+        (c) => c.metadata.name === name && c.metadata.namespace === namespace
+      );
+      const cm: SimConfigMap = {
+        kind: "ConfigMap",
+        apiVersion: "v1",
+        metadata: {
+          name,
+          namespace,
+          labels: doc.metadata?.labels ?? {},
+          uid: existing >= 0 ? state.configMaps[existing].metadata.uid : generateUid(),
+          creationTimestamp: existing >= 0 ? state.configMaps[existing].metadata.creationTimestamp : Date.now(),
+        },
+        data: doc.data,
+      };
+      if (existing >= 0) state.configMaps[existing] = cm;
+      else state.configMaps.push(cm);
+      break;
+    }
+
+    case "Secret": {
+      const existing = state.secrets.findIndex(
+        (s) => s.metadata.name === name && s.metadata.namespace === namespace
+      );
+      const secret: SimSecret = {
+        kind: "Secret",
+        apiVersion: "v1",
+        metadata: {
+          name,
+          namespace,
+          labels: doc.metadata?.labels ?? {},
+          uid: existing >= 0 ? state.secrets[existing].metadata.uid : generateUid(),
+          creationTimestamp: existing >= 0 ? state.secrets[existing].metadata.creationTimestamp : Date.now(),
+        },
+        data: doc.data,
+        type: doc.type ?? "Opaque",
+      };
+      if (existing >= 0) state.secrets[existing] = secret;
+      else state.secrets.push(secret);
+      break;
+    }
+
+    case "Namespace": {
+      const existing = state.namespaces.findIndex((n) => n.metadata.name === name);
+      const ns: SimNamespace = {
+        kind: "Namespace",
+        apiVersion: "v1",
+        metadata: {
+          name,
+          labels: doc.metadata?.labels ?? {},
+          uid: existing >= 0 ? state.namespaces[existing].metadata.uid : generateUid(),
+          creationTimestamp: existing >= 0 ? state.namespaces[existing].metadata.creationTimestamp : Date.now(),
+        },
+        status: { phase: "Active" },
+      };
+      if (existing >= 0) state.namespaces[existing] = ns;
+      else state.namespaces.push(ns);
+      break;
+    }
+
+    case "PersistentVolume": {
+      const existing = state.persistentVolumes.findIndex((pv) => pv.metadata.name === name);
+      const pv: SimPersistentVolume = {
+        kind: "PersistentVolume",
+        apiVersion: "v1",
+        metadata: {
+          name,
+          labels: doc.metadata?.labels ?? {},
+          uid: existing >= 0 ? state.persistentVolumes[existing].metadata.uid : generateUid(),
+          creationTimestamp: existing >= 0 ? state.persistentVolumes[existing].metadata.creationTimestamp : Date.now(),
+        },
+        spec: {
+          capacity: doc.spec?.capacity ?? { storage: "1Gi" },
+          accessModes: doc.spec?.accessModes ?? ["ReadWriteOnce"],
+          storageClassName: doc.spec?.storageClassName,
+          hostPath: doc.spec?.hostPath,
+          persistentVolumeReclaimPolicy: doc.spec?.persistentVolumeReclaimPolicy ?? "Retain",
+        },
+        status: { phase: existing >= 0 ? state.persistentVolumes[existing].status.phase : "Available" },
+      };
+      if (existing >= 0) state.persistentVolumes[existing] = pv;
+      else state.persistentVolumes.push(pv);
+      break;
+    }
+
+    case "PersistentVolumeClaim": {
+      const existing = state.persistentVolumeClaims.findIndex(
+        (pvc) => pvc.metadata.name === name && pvc.metadata.namespace === namespace
+      );
+      const pvc: SimPersistentVolumeClaim = {
+        kind: "PersistentVolumeClaim",
+        apiVersion: "v1",
+        metadata: {
+          name,
+          namespace,
+          labels: doc.metadata?.labels ?? {},
+          uid: existing >= 0 ? state.persistentVolumeClaims[existing].metadata.uid : generateUid(),
+          creationTimestamp: existing >= 0 ? state.persistentVolumeClaims[existing].metadata.creationTimestamp : Date.now(),
+        },
+        spec: {
+          accessModes: doc.spec?.accessModes ?? ["ReadWriteOnce"],
+          resources: doc.spec?.resources ?? { requests: { storage: "1Gi" } },
+          storageClassName: doc.spec?.storageClassName,
+          volumeName: doc.spec?.volumeName,
+        },
+        status: { phase: existing >= 0 ? state.persistentVolumeClaims[existing].status.phase : "Pending" },
+      };
+      if (existing >= 0) state.persistentVolumeClaims[existing] = pvc;
+      else state.persistentVolumeClaims.push(pvc);
+      break;
+    }
+
+    case "StorageClass": {
+      const existing = state.storageClasses.findIndex((sc) => sc.metadata.name === name);
+      const sc: SimStorageClass = {
+        kind: "StorageClass",
+        apiVersion: "storage.k8s.io/v1",
+        metadata: {
+          name,
+          labels: doc.metadata?.labels ?? {},
+          uid: existing >= 0 ? state.storageClasses[existing].metadata.uid : generateUid(),
+          creationTimestamp: existing >= 0 ? state.storageClasses[existing].metadata.creationTimestamp : Date.now(),
+          annotations: doc.metadata?.annotations,
+        },
+        provisioner: doc.provisioner ?? "kubernetes.io/no-provisioner",
+        volumeBindingMode: doc.volumeBindingMode ?? "Immediate",
+        reclaimPolicy: doc.reclaimPolicy ?? "Delete",
+        allowVolumeExpansion: doc.allowVolumeExpansion,
+      };
+      if (existing >= 0) state.storageClasses[existing] = sc;
+      else state.storageClasses.push(sc);
+      break;
+    }
+
     default:
-      // Silently accept unknown kinds (PVC, ConfigMap, etc.) — Phase 1 stub
       break;
   }
 }
@@ -214,6 +367,7 @@ export class ClusterSimulator {
     this.state.tick++;
     reconcileDeployments(this.state);
     reconcileReplicaSets(this.state);
+    reconcilePersistentVolumeClaims(this.state);
     schedulePods(this.state);
     updatePodStatus(this.state);
     this.notify();
@@ -241,6 +395,36 @@ export class ClusterSimulator {
 
   getNodes(): SimNode[] {
     return this.state.nodes;
+  }
+
+  getConfigMaps(namespace?: string): SimConfigMap[] {
+    return namespace
+      ? this.state.configMaps.filter((c) => c.metadata.namespace === namespace)
+      : this.state.configMaps;
+  }
+
+  getSecrets(namespace?: string): SimSecret[] {
+    return namespace
+      ? this.state.secrets.filter((s) => s.metadata.namespace === namespace)
+      : this.state.secrets;
+  }
+
+  getNamespaces(): SimNamespace[] {
+    return this.state.namespaces;
+  }
+
+  getPersistentVolumes(): SimPersistentVolume[] {
+    return this.state.persistentVolumes;
+  }
+
+  getPersistentVolumeClaims(namespace?: string): SimPersistentVolumeClaim[] {
+    return namespace
+      ? this.state.persistentVolumeClaims.filter((pvc) => pvc.metadata.namespace === namespace)
+      : this.state.persistentVolumeClaims;
+  }
+
+  getStorageClasses(): SimStorageClass[] {
+    return this.state.storageClasses;
   }
 
   getEvents(): ClusterState["events"] {

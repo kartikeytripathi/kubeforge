@@ -1,0 +1,92 @@
+---
+title: "Namespaces: Logical cluster isolation"
+phase: "A"
+lessonId: "a6"
+---
+
+## What is a namespace?
+
+A **Namespace** is a virtual cluster inside a Kubernetes cluster. Resources in different namespaces are isolated from each other by default. Names must be unique within a namespace, but the same name can exist in multiple namespaces.
+
+```yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: staging
+```
+
+## Default namespaces
+
+Every cluster ships with four:
+
+| Namespace | Purpose |
+|---|---|
+| `default` | Resources with no explicit namespace |
+| `kube-system` | Kubernetes system components (kube-dns, kube-proxy, etc.) |
+| `kube-public` | Publicly readable data (cluster info) |
+| `kube-node-lease` | Node heartbeat lease objects |
+
+## Namespacing your resources
+
+Set `metadata.namespace` on every namespaced resource:
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  namespace: staging    # ← required for namespace isolation
+spec:
+  ...
+```
+
+**Cluster-scoped resources** (Nodes, PersistentVolumes, StorageClasses, Namespaces themselves) do **not** have a namespace field.
+
+## DNS across namespaces
+
+Services within the same namespace are reachable by short name:
+
+```
+http://backend-svc/api
+```
+
+Cross-namespace requires the full DNS name:
+
+```
+http://backend-svc.default.svc.cluster.local/api
+```
+
+Format: `<service>.<namespace>.svc.cluster.local`
+
+## Namespace isolation patterns
+
+```
+production/    → stable, strict RBAC, resource quotas
+staging/       → QA team, mirrors production config
+development/   → per-developer ephemeral environments
+monitoring/    → observability stack (Prometheus, Grafana)
+```
+
+On EKS, namespaces integrate with IAM Roles for Service Accounts (IRSA) to provide fine-grained AWS permissions per workload.
+
+## Resource quotas
+
+You can limit what a namespace can consume:
+
+```yaml
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: staging-quota
+  namespace: staging
+spec:
+  hard:
+    requests.cpu: "4"
+    requests.memory: 8Gi
+    pods: "20"
+```
+
+## Further reading
+
+- [Namespaces](https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/)
+- [Resource Quotas](https://kubernetes.io/docs/concepts/policy/resource-quotas/)

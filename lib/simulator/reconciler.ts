@@ -6,6 +6,7 @@ import type {
   ContainerSpec,
   ClusterEvent,
   Labels,
+  SimPersistentVolume,
 } from "./types";
 import { generateUid, labelsMatch, templateHash, willCrash } from "./utils";
 
@@ -87,6 +88,91 @@ function makePod(
       _tick: tick,
     },
   };
+}
+
+/** Bind PVCs to PVs or trigger dynamic provisioning via StorageClass */
+export function reconcilePersistentVolumeClaims(state: ClusterState): void {
+  for (const pvc of state.persistentVolumeClaims) {
+    if (pvc.status.phase === "Bound") continue;
+
+    // Try to bind to an explicitly named PV first
+    if (pvc.spec.volumeName) {
+      const pv = state.persistentVolumes.find(
+        (v) => v.metadata.name === pvc.spec.volumeName && v.status.phase === "Available"
+      );
+      if (pv) {
+        pvc.status.phase = "Bound";
+        pvc.status.capacity = pv.spec.capacity;
+        pvc.status.accessModes = pv.spec.accessModes;
+        pv.status.phase = "Bound";
+        emitEvent(state, "Normal", "Bound", `PVC ${pvc.metadata.name} bound to PV ${pv.metadata.name}`, {
+          kind: "PersistentVolumeClaim",
+          name: pvc.metadata.name,
+          namespace: pvc.metadata.namespace,
+        });
+      }
+      continue;
+    }
+
+    // Find a matching available PV by storageClass and access modes
+    const matchingPV = state.persistentVolumes.find((pv: SimPersistentVolume) => {
+      if (pv.status.phase !== "Available") return false;
+      if (pvc.spec.storageClassName !== undefined && pv.spec.storageClassName !== pvc.spec.storageClassName) return false;
+      const pvcModes = new Set(pvc.spec.accessModes);
+      return pv.spec.accessModes.some((m) => pvcModes.has(m));
+    });
+
+    if (matchingPV) {
+      pvc.status.phase = "Bound";
+      pvc.status.capacity = matchingPV.spec.capacity;
+      pvc.status.accessModes = matchingPV.spec.accessModes;
+      pvc.spec.volumeName = matchingPV.metadata.name;
+      matchingPV.status.phase = "Bound";
+      emitEvent(state, "Normal", "Bound", `PVC ${pvc.metadata.name} bound to PV ${matchingPV.metadata.name}`, {
+        kind: "PersistentVolumeClaim",
+        name: pvc.metadata.name,
+        namespace: pvc.metadata.namespace,
+      });
+      continue;
+    }
+
+    // Dynamic provisioning: if a StorageClass with Immediate binding exists, simulate provisioning
+    if (pvc.spec.storageClassName) {
+      const sc = state.storageClasses.find(
+        (s) => s.metadata.name === pvc.spec.storageClassName && (s.volumeBindingMode ?? "Immediate") === "Immediate"
+      );
+      if (sc) {
+        const pvName = `pvc-${pvc.metadata.uid.slice(0, 8)}`;
+        const newPV: SimPersistentVolume = {
+          kind: "PersistentVolume",
+          apiVersion: "v1",
+          metadata: {
+            name: pvName,
+            labels: {},
+            uid: pvc.metadata.uid + "-pv",
+            creationTimestamp: Date.now(),
+          },
+          spec: {
+            capacity: pvc.spec.resources.requests,
+            accessModes: pvc.spec.accessModes,
+            storageClassName: pvc.spec.storageClassName,
+            persistentVolumeReclaimPolicy: sc.reclaimPolicy ?? "Delete",
+          },
+          status: { phase: "Bound" },
+        };
+        state.persistentVolumes.push(newPV);
+        pvc.status.phase = "Bound";
+        pvc.status.capacity = newPV.spec.capacity;
+        pvc.status.accessModes = newPV.spec.accessModes;
+        pvc.spec.volumeName = pvName;
+        emitEvent(state, "Normal", "ProvisioningSucceeded", `PVC ${pvc.metadata.name} dynamically provisioned`, {
+          kind: "PersistentVolumeClaim",
+          name: pvc.metadata.name,
+          namespace: pvc.metadata.namespace,
+        });
+      }
+    }
+  }
 }
 
 /** Reconcile Deployments → ReplicaSets */

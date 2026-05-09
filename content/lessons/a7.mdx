@@ -1,0 +1,83 @@
+---
+title: "Multi-resource stacks: Shipping an entire application"
+phase: "A"
+lessonId: "a7"
+---
+
+## The full application model
+
+Production applications aren't a single Deployment — they're a composition of resources that must be created together and in the right order. A typical microservice stack:
+
+```
+Namespace
+  └── ConfigMap (environment config)
+  └── Secret (credentials)
+  └── PersistentVolumeClaim (database storage)
+  └── Deployment (application pods)
+        └── ReplicaSet → Pods
+  └── Service (stable network endpoint)
+```
+
+## Multi-document YAML
+
+Kubernetes accepts multiple resources in one file separated by `---`:
+
+```yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: production
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: api-config
+  namespace: production
+data:
+  LOG_LEVEL: info
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-server
+  namespace: production
+spec:
+  ...
+```
+
+Apply with `kubectl apply -f stack.yaml` and all resources are created in order.
+
+## Dependency ordering
+
+Kubernetes doesn't guarantee creation order, but some resources must exist before others can become healthy:
+
+- Secrets and ConfigMaps **before** pods that reference them
+- PVCs **before** pods that mount them
+- Namespaces **before** any resource in that namespace
+
+In `kubectl apply -f`, resources are sent in file order. The reconciler handles retries, so a pod that can't find its ConfigMap will keep retrying until it appears.
+
+## Labels as the glue
+
+Every relationship between resources in Kubernetes is expressed via labels and selectors:
+
+```
+Deployment.spec.selector.matchLabels: { app: api-server }
+   └── pod template labels: { app: api-server }
+         └── Service.spec.selector: { app: api-server }
+```
+
+If any label mismatches, the Service gets no endpoints, the Deployment can't track its pods, and nothing works.
+
+## Validating your stack
+
+A healthy stack shows:
+- All Pods in `Running` phase
+- Deployment `readyReplicas` == `spec.replicas`
+- Service endpoints pointing to Running pods
+- PVCs in `Bound` phase
+
+## Further reading
+
+- [kubectl apply](https://kubernetes.io/docs/reference/kubectl/generated/kubectl_apply/)
+- [Kubernetes object management](https://kubernetes.io/docs/concepts/overview/working-with-objects/object-management/)
