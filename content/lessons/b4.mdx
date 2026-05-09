@@ -1,0 +1,85 @@
+---
+title: "StatefulSets & Stable Identity"
+phase: "B"
+lessonId: "b4"
+---
+
+## Why Deployments are not enough for stateful apps
+
+A Deployment treats all its pods as interchangeable. When a pod is replaced, it gets a new random name, a new IP, and (without a PVC) no persistent storage. For databases and clustered applications, this is a problem: each node needs a stable identity so peers can address it, and each node must keep its data across restarts.
+
+**StatefulSets** solve both problems.
+
+## Stable pod names
+
+A StatefulSet named `postgres` with 3 replicas creates pods with predictable, ordered names:
+
+```
+postgres-0   (created first, must be Running before next)
+postgres-1
+postgres-2
+```
+
+These names are permanent. If `postgres-1` is rescheduled to a different node, it keeps the name `postgres-1`. Other pods can always reach it at `postgres-1.postgres.default.svc.cluster.local`.
+
+## volumeClaimTemplates
+
+The key field that makes StatefulSets different from Deployments is `volumeClaimTemplates`. Each replica gets its own PVC, automatically named and permanently bound to that pod index:
+
+```yaml
+volumeClaimTemplates:
+- metadata:
+    name: data
+  spec:
+    storageClassName: fast-ssd
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 1Gi
+```
+
+This creates PVCs named `data-postgres-0`, `data-postgres-1`, `data-postgres-2`. Deleting a pod does NOT delete its PVC — data survives rescheduling.
+
+## Headless Service
+
+StatefulSets require a headless Service (`clusterIP: None`) for DNS-based peer discovery:
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+spec:
+  clusterIP: None          # headless — no load-balancing, just DNS
+  selector:
+    app: postgres
+  ports:
+  - port: 5432
+```
+
+Each pod is addressable at `<pod-name>.<service-name>.<namespace>.svc.cluster.local`.
+
+## Ordered rollout and termination
+
+| Operation | Behaviour |
+|---|---|
+| Scale up | Pods created in order: 0, 1, 2 (waits for each to be Ready) |
+| Scale down | Pods deleted in reverse order: 2, 1, 0 |
+| Rolling update | Updates from highest index down to 0 |
+
+This ordering matters for databases — the primary (often pod-0) must be the last to be updated.
+
+## StatefulSet vs Deployment at a glance
+
+| Feature | Deployment | StatefulSet |
+|---|---|---|
+| Pod names | Random suffix | Stable ordinal (`-0`, `-1`, …) |
+| Per-pod storage | Shared or none | Individual PVC per pod |
+| Scaling order | Parallel | Sequential |
+| DNS per pod | No | Yes (with headless Service) |
+
+## Further reading
+
+- [StatefulSets](https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/)
+- [Running a Replicated Stateful Application](https://kubernetes.io/docs/tasks/run-application/run-replicated-stateful-application/)

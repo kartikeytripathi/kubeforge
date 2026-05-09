@@ -1,0 +1,30 @@
+{
+  "id": "b8",
+  "title": "Grant pod-listing permission with RBAC",
+  "difficulty": "intermediate",
+  "estimatedMinutes": 25,
+  "realWorldIncident": false,
+  "scenario": "A `monitoring` pod uses the `monitor-sa` ServiceAccount and needs to list pods in the `default` namespace. The starter YAML creates the ServiceAccount, a Role, and a RoleBinding — but the Role only grants `get` on pods, not `list`. The monitoring agent requires `list` to discover all pods. Fix the Role's verbs.",
+  "hiddenSetup": [
+    {
+      "kind": "Pod",
+      "metadata": { "name": "monitoring", "namespace": "default", "labels": { "app": "monitoring" } },
+      "spec": {
+        "serviceAccountName": "monitor-sa",
+        "containers": [{ "name": "agent", "image": "alpine:3.18", "command": ["/bin/sh", "-c", "while true; do sleep 30; done"] }]
+      }
+    }
+  ],
+  "starterYaml": "apiVersion: v1\nkind: ServiceAccount\nmetadata:\n  name: monitor-sa\n  namespace: default\n---\napiVersion: rbac.authorization.k8s.io/v1\nkind: Role\nmetadata:\n  name: pod-reader\n  namespace: default\nrules:\n- apiGroups: [\"\"]\n  resources: [\"pods\"]\n  verbs: [\"get\"]\n---\napiVersion: rbac.authorization.k8s.io/v1\nkind: RoleBinding\nmetadata:\n  name: pod-reader-binding\n  namespace: default\nroleRef:\n  apiGroup: rbac.authorization.k8s.io\n  kind: Role\n  name: pod-reader\nsubjects:\n- kind: ServiceAccount\n  name: monitor-sa\n  namespace: default\n",
+  "objectives": [
+    { "id": "sa-exists",       "description": "ServiceAccount `monitor-sa` exists in the `default` namespace" },
+    { "id": "role-list-verb",  "description": "Role `pod-reader` has verb `list` for the `pods` resource" },
+    { "id": "rolebinding",     "description": "RoleBinding `pod-reader-binding` links `pod-reader` to `monitor-sa`" }
+  ],
+  "hints": [
+    { "revealAfterMs": 60000,  "text": "The monitoring agent uses `list` to enumerate all pods (like `kubectl get pods`). The `get` verb only allows fetching a single pod by name." },
+    { "revealAfterMs": 120000, "text": "In the Role spec, change `verbs: [\"get\"]` to `verbs: [\"get\", \"list\"]`. It is safe to keep `get` alongside `list`." },
+    { "revealAfterMs": 180000, "text": "You can verify the permission after applying: `kubectl auth can-i list pods --as=system:serviceaccount:default:monitor-sa`. It should return `yes`." }
+  ],
+  "solution": "apiVersion: v1\nkind: ServiceAccount\nmetadata:\n  name: monitor-sa\n  namespace: default\n---\napiVersion: rbac.authorization.k8s.io/v1\nkind: Role\nmetadata:\n  name: pod-reader\n  namespace: default\nrules:\n- apiGroups: [\"\"]\n  resources: [\"pods\"]\n  verbs: [\"get\", \"list\"]\n---\napiVersion: rbac.authorization.k8s.io/v1\nkind: RoleBinding\nmetadata:\n  name: pod-reader-binding\n  namespace: default\nroleRef:\n  apiGroup: rbac.authorization.k8s.io\n  kind: Role\n  name: pod-reader\nsubjects:\n- kind: ServiceAccount\n  name: monitor-sa\n  namespace: default\n"
+}

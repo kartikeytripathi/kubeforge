@@ -1,0 +1,193 @@
+{
+  "id": "b10",
+  "title": "Boss Lab: Three simultaneous production failures",
+  "difficulty": "advanced",
+  "estimatedMinutes": 45,
+  "realWorldIncident": true,
+  "scenario": "ALERT: three teams are reporting failures simultaneously. (1) The `api` Deployment pods are being killed and restarted \u2014 a liveness probe typo (`/heathz`) is causing them to be considered unhealthy. (2) The `worker` Deployment needs 2 replicas each requesting 2000m CPU, but nodes only have 2000m allocatable total \u2014 both pods are Pending. (3) The `logger` DaemonSet is missing a toleration for node `sim-node-1` which has taint `env=prod:NoSchedule` \u2014 one of the two expected pods is not scheduled. Fix all three.",
+  "hiddenSetup": [
+    {
+      "kind": "Node",
+      "metadata": {
+        "name": "sim-node-1"
+      },
+      "spec": {
+        "taints": [
+          {
+            "key": "env",
+            "value": "prod",
+            "effect": "NoSchedule"
+          }
+        ]
+      }
+    },
+    {
+      "kind": "Deployment",
+      "metadata": {
+        "name": "api",
+        "namespace": "default"
+      },
+      "spec": {
+        "replicas": 2,
+        "selector": {
+          "matchLabels": {
+            "app": "api"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app": "api"
+            }
+          },
+          "spec": {
+            "containers": [
+              {
+                "name": "api",
+                "image": "nginx:1.25",
+                "ports": [
+                  {
+                    "containerPort": 80
+                  }
+                ],
+                "livenessProbe": {
+                  "httpGet": {
+                    "path": "/heathz",
+                    "port": 80
+                  },
+                  "initialDelaySeconds": 5,
+                  "periodSeconds": 10
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "kind": "Deployment",
+      "metadata": {
+        "name": "worker",
+        "namespace": "default"
+      },
+      "spec": {
+        "replicas": 2,
+        "selector": {
+          "matchLabels": {
+            "app": "worker"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app": "worker"
+            }
+          },
+          "spec": {
+            "containers": [
+              {
+                "name": "worker",
+                "image": "alpine:3.18",
+                "command": [
+                  "/bin/sh",
+                  "-c",
+                  "while true; do echo working; sleep 5; done"
+                ],
+                "resources": {
+                  "requests": {
+                    "cpu": "2000m",
+                    "memory": "256Mi"
+                  },
+                  "limits": {
+                    "cpu": "2000m",
+                    "memory": "512Mi"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "kind": "DaemonSet",
+      "metadata": {
+        "name": "logger",
+        "namespace": "default"
+      },
+      "spec": {
+        "selector": {
+          "matchLabels": {
+            "app": "logger"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app": "logger"
+            }
+          },
+          "spec": {
+            "containers": [
+              {
+                "name": "logger",
+                "image": "alpine:3.18",
+                "command": [
+                  "/bin/sh",
+                  "-c",
+                  "while true; do echo logging; sleep 5; done"
+                ]
+              }
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "starterYaml": "# Fix 1: api Deployment \u2014 liveness probe path typo\napiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: api\n  namespace: default\nspec:\n  replicas: 2\n  selector:\n    matchLabels:\n      app: api\n  template:\n    metadata:\n      labels:\n        app: api\n    spec:\n      containers:\n      - name: api\n        image: nginx:1.25\n        ports:\n        - containerPort: 80\n        livenessProbe:\n          httpGet:\n            path: /heathz\n            port: 80\n          initialDelaySeconds: 5\n          periodSeconds: 10\n---\n# Fix 2: worker Deployment \u2014 CPU requests too high\napiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: worker\n  namespace: default\nspec:\n  replicas: 2\n  selector:\n    matchLabels:\n      app: worker\n  template:\n    metadata:\n      labels:\n        app: worker\n    spec:\n      containers:\n      - name: worker\n        image: alpine:3.18\n        command: [\"/bin/sh\", \"-c\", \"while true; do echo working; sleep 5; done\"]\n        resources:\n          requests:\n            cpu: \"2000m\"\n            memory: \"256Mi\"\n          limits:\n            cpu: \"2000m\"\n            memory: \"512Mi\"\n---\n# Fix 3: logger DaemonSet \u2014 missing toleration for taint env=prod:NoSchedule\napiVersion: apps/v1\nkind: DaemonSet\nmetadata:\n  name: logger\n  namespace: default\nspec:\n  selector:\n    matchLabels:\n      app: logger\n  template:\n    metadata:\n      labels:\n        app: logger\n    spec:\n      containers:\n      - name: logger\n        image: alpine:3.18\n        command: [\"/bin/sh\", \"-c\", \"while true; do echo logging; sleep 5; done\"]\n",
+  "objectives": [
+    {
+      "id": "api-probe-fixed",
+      "description": "`api` Deployment liveness probe path is `/healthz`"
+    },
+    {
+      "id": "api-pods-running",
+      "description": "`api` pods are Running and not restarting"
+    },
+    {
+      "id": "worker-cpu-fixed",
+      "description": "`worker` container CPU request is `800m` or less"
+    },
+    {
+      "id": "worker-pods-running",
+      "description": "Both `worker` pods are Running"
+    },
+    {
+      "id": "logger-toleration",
+      "description": "`logger` DaemonSet has toleration for key `env`, value `prod`, effect `NoSchedule`"
+    },
+    {
+      "id": "logger-ds-ready",
+      "description": "`logger` DaemonSet `numberReady` equals 2"
+    }
+  ],
+  "hints": [
+    {
+      "revealAfterMs": 90000,
+      "text": "Start with the easiest fix: `api` liveness probe. Change `path: /heathz` to `path: /healthz`. Apply just the api Deployment first."
+    },
+    {
+      "revealAfterMs": 180000,
+      "text": "For `worker`: 2 replicas \u00d7 2000m = 4000m needed but only 4000m total and system pods also consume CPU. Reduce requests to 600m \u2014 well within each node's budget."
+    },
+    {
+      "revealAfterMs": 270000,
+      "text": "For `logger`: sim-node-1 has taint `env=prod:NoSchedule`. Add a toleration block under `spec.template.spec.tolerations` with key `env`, value `prod`, operator `Equal`, effect `NoSchedule`."
+    },
+    {
+      "revealAfterMs": 360000,
+      "text": "Apply all three fixes in one `kubectl apply -f` call with the multi-document YAML (three `---` separated manifests). Then verify: `kubectl get pods` should show all pods Running or Succeeded."
+    }
+  ],
+  "solution": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: api\n  namespace: default\nspec:\n  replicas: 2\n  selector:\n    matchLabels:\n      app: api\n  template:\n    metadata:\n      labels:\n        app: api\n    spec:\n      containers:\n      - name: api\n        image: nginx:1.25\n        ports:\n        - containerPort: 80\n        livenessProbe:\n          httpGet:\n            path: /healthz\n            port: 80\n          initialDelaySeconds: 5\n          periodSeconds: 10\n---\napiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: worker\n  namespace: default\nspec:\n  replicas: 2\n  selector:\n    matchLabels:\n      app: worker\n  template:\n    metadata:\n      labels:\n        app: worker\n    spec:\n      containers:\n      - name: worker\n        image: alpine:3.18\n        command: [\"/bin/sh\", \"-c\", \"while true; do echo working; sleep 5; done\"]\n        resources:\n          requests:\n            cpu: \"600m\"\n            memory: \"256Mi\"\n          limits:\n            cpu: \"1000m\"\n            memory: \"512Mi\"\n---\napiVersion: apps/v1\nkind: DaemonSet\nmetadata:\n  name: logger\n  namespace: default\nspec:\n  selector:\n    matchLabels:\n      app: logger\n  template:\n    metadata:\n      labels:\n        app: logger\n    spec:\n      tolerations:\n      - key: env\n        operator: Equal\n        value: prod\n        effect: NoSchedule\n      containers:\n      - name: logger\n        image: alpine:3.18\n        command: [\"/bin/sh\", \"-c\", \"while true; do echo logging; sleep 5; done\"]\n"
+}

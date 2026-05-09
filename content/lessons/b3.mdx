@@ -1,0 +1,87 @@
+---
+title: "Taints & Tolerations"
+phase: "B"
+lessonId: "b3"
+---
+
+## The problem taints solve
+
+In a shared cluster, some nodes are special: GPU nodes, high-memory nodes, nodes reserved for production workloads, or spot instances that should only run fault-tolerant jobs. **Taints** let you mark a node so that ordinary pods cannot land on it. **Tolerations** let specific pods declare that they accept a particular taint — opting in to the restricted node.
+
+## Taint anatomy
+
+A taint has three parts: **key**, **value**, and **effect**.
+
+```bash
+# Add a taint to a node
+kubectl taint node sim-node-2 dedicated=gpu:NoSchedule
+```
+
+This means: "do not schedule any pod on sim-node-2 unless it tolerates `dedicated=gpu`."
+
+## Taint effects
+
+| Effect | Behaviour |
+|---|---|
+| `NoSchedule` | New pods without a matching toleration are not scheduled here |
+| `PreferNoSchedule` | Scheduler tries to avoid the node, but will use it if necessary |
+| `NoExecute` | Evicts running pods that do not tolerate the taint (new + existing) |
+
+## Toleration anatomy
+
+```yaml
+spec:
+  tolerations:
+  - key: dedicated
+    operator: Equal      # Equal (match value) or Exists (ignore value)
+    value: gpu
+    effect: NoSchedule
+```
+
+A pod with this toleration can be scheduled on nodes tainted `dedicated=gpu:NoSchedule`. It is not forced there — it just becomes eligible.
+
+## Combining tolerations with nodeSelector
+
+A toleration only removes the scheduling barrier. To actually target a specific node, pair it with a `nodeSelector` or `nodeAffinity`:
+
+```yaml
+spec:
+  nodeSelector:
+    kubernetes.io/hostname: sim-node-2   # force scheduling to this node
+  tolerations:
+  - key: dedicated
+    operator: Equal
+    value: gpu
+    effect: NoSchedule                   # allow scheduling despite the taint
+```
+
+Without the toleration, the nodeSelector would conflict with the taint and the pod would stay Pending.
+
+## Wildcard tolerations
+
+```yaml
+tolerations:
+- operator: Exists   # tolerate any taint on any key
+```
+
+This schedules the pod on any node regardless of taints — useful for DaemonSets that must run system agents everywhere.
+
+## Real-world patterns
+
+| Scenario | Taint | Toleration |
+|---|---|---|
+| GPU node reserved for ML jobs | `gpu=true:NoSchedule` | ML pods tolerate `gpu=true` |
+| Spot instances for batch work | `spot=true:NoExecute` | Batch pods tolerate with `tolerationSeconds` |
+| Production-only nodes | `env=prod:NoSchedule` | Only prod-tagged Deployments tolerate |
+
+## Removing a taint
+
+```bash
+kubectl taint node sim-node-2 dedicated=gpu:NoSchedule-
+```
+
+The trailing `-` removes the taint.
+
+## Further reading
+
+- [Taints and Tolerations](https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/)

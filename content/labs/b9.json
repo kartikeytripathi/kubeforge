@@ -1,0 +1,42 @@
+{
+  "id": "b9",
+  "title": "Configure an HPA with correct scaling thresholds",
+  "difficulty": "intermediate",
+  "estimatedMinutes": 20,
+  "realWorldIncident": false,
+  "scenario": "The `api` Deployment is live and the team wants autoscaling. Someone already created an HPA but set the wrong values: `minReplicas: 1` (too low — you always want at least 2 for HA) and `targetCPUUtilizationPercentage: 50` (too aggressive — use 70% to avoid thrashing). Fix both values.",
+  "hiddenSetup": [
+    {
+      "kind": "Deployment",
+      "metadata": { "name": "api", "namespace": "default" },
+      "spec": {
+        "replicas": 3,
+        "selector": { "matchLabels": { "app": "api" } },
+        "template": {
+          "metadata": { "labels": { "app": "api" } },
+          "spec": {
+            "containers": [{
+              "name": "api",
+              "image": "nginx:1.25",
+              "resources": { "requests": { "cpu": "200m", "memory": "128Mi" }, "limits": { "cpu": "500m", "memory": "256Mi" } }
+            }]
+          }
+        }
+      }
+    }
+  ],
+  "starterYaml": "apiVersion: autoscaling/v2\nkind: HorizontalPodAutoscaler\nmetadata:\n  name: api-hpa\n  namespace: default\nspec:\n  scaleTargetRef:\n    apiVersion: apps/v1\n    kind: Deployment\n    name: api\n  minReplicas: 1\n  maxReplicas: 10\n  metrics:\n  - type: Resource\n    resource:\n      name: cpu\n      target:\n        type: Utilization\n        averageUtilization: 50\n",
+  "objectives": [
+    { "id": "hpa-exists",      "description": "HPA `api-hpa` exists in the `default` namespace" },
+    { "id": "targets-api",     "description": "HPA targets the `api` Deployment" },
+    { "id": "min-replicas",    "description": "`minReplicas` is 2 or higher" },
+    { "id": "max-replicas",    "description": "`maxReplicas` is 5 or higher" },
+    { "id": "cpu-target-70",   "description": "`averageUtilization` is set to 70" }
+  ],
+  "hints": [
+    { "revealAfterMs": 60000,  "text": "Two numbers need to change: `minReplicas` and `averageUtilization`. `maxReplicas` and the target Deployment reference are already correct." },
+    { "revealAfterMs": 120000, "text": "Change `minReplicas: 1` to `minReplicas: 2` for high-availability. Change `averageUtilization: 50` to `averageUtilization: 70` to reduce scale-out sensitivity." },
+    { "revealAfterMs": 180000, "text": "After applying, check `kubectl get hpa api-hpa`. The TARGETS column will show current CPU% vs 70%. The MINPODS column will show 2." }
+  ],
+  "solution": "apiVersion: autoscaling/v2\nkind: HorizontalPodAutoscaler\nmetadata:\n  name: api-hpa\n  namespace: default\nspec:\n  scaleTargetRef:\n    apiVersion: apps/v1\n    kind: Deployment\n    name: api\n  minReplicas: 2\n  maxReplicas: 10\n  metrics:\n  - type: Resource\n    resource:\n      name: cpu\n      target:\n        type: Utilization\n        averageUtilization: 70\n"
+}

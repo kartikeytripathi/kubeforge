@@ -1,18 +1,26 @@
 "use client";
 
 import Link from "next/link";
-import { useProgressStore } from "@/lib/progress-store";
+import {
+  useProgressStore,
+  getCompletedLabIds,
+  getStreak,
+  getActivityDays,
+  getCkaReadiness,
+  getEksReadiness,
+} from "@/lib/progress-store";
 
 export default function HomePage() {
-  const completedLabIds = useProgressStore((s) => s.completedLabIds());
-  const streak = useProgressStore((s) => s.streak());
-  const activityDays = useProgressStore((s) => s.activityDays());
-  const ckaReadiness = useProgressStore((s) => s.ckaReadiness());
-  const eksReadiness = useProgressStore((s) => s.eksReadiness());
-  const totalAttempts = useProgressStore((s) => s.attempts.length);
+  const completions = useProgressStore((s) => s.completions);
+  const attempts = useProgressStore((s) => s.attempts);
+
+  const completedLabIds = getCompletedLabIds(completions);
+  const streak = getStreak(attempts);
+  const activityDays = getActivityDays(attempts);
+  const ckaReadiness = getCkaReadiness(completions);
+  const eksReadiness = getEksReadiness(completions);
 
   const activitySet = new Set(activityDays);
-
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const heatmapDays = Array.from({ length: 364 }, (_, i) => {
@@ -23,7 +31,6 @@ export default function HomePage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-10 py-8">
-      {/* Hero */}
       <section className="space-y-3">
         <h1 className="text-4xl font-bold tracking-tight text-white">
           Welcome to <span className="text-teal-600">KubeForge</span>
@@ -34,16 +41,11 @@ export default function HomePage() {
         </p>
       </section>
 
-      {/* Live stats */}
       <section className="grid grid-cols-3 gap-4">
         {[
           { label: "CKA Readiness", value: `${ckaReadiness}%`, color: "text-teal-400" },
           { label: "EKS Readiness", value: `${eksReadiness}%`, color: "text-blue-400" },
-          {
-            label: "Current Streak",
-            value: `${streak} day${streak !== 1 ? "s" : ""}`,
-            color: "text-amber-400",
-          },
+          { label: "Current Streak", value: `${streak} day${streak !== 1 ? "s" : ""}`, color: "text-amber-400" },
         ].map((stat) => (
           <div key={stat.label} className="rounded-xl border border-surface-600 bg-surface-800 p-5">
             <p className="text-sm text-gray-400">{stat.label}</p>
@@ -52,7 +54,6 @@ export default function HomePage() {
         ))}
       </section>
 
-      {/* Completed labs */}
       {completedLabIds.length > 0 && (
         <section className="rounded-xl border border-surface-600 bg-surface-800 p-5">
           <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-gray-400">
@@ -60,10 +61,7 @@ export default function HomePage() {
           </h2>
           <div className="flex flex-wrap gap-2">
             {completedLabIds.map((id) => (
-              <span
-                key={id}
-                className="rounded-full bg-teal-600/20 px-3 py-1 text-xs font-semibold text-teal-400"
-              >
+              <span key={id} className="rounded-full bg-teal-600/20 px-3 py-1 text-xs font-semibold text-teal-400">
                 {id.toUpperCase()}
               </span>
             ))}
@@ -71,7 +69,6 @@ export default function HomePage() {
         </section>
       )}
 
-      {/* Activity heatmap */}
       <section className="rounded-xl border border-surface-600 bg-surface-800 p-5">
         <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-gray-400">
           Activity — last 52 weeks
@@ -81,31 +78,22 @@ export default function HomePage() {
             <div
               key={day}
               title={day}
-              className={`aspect-square w-full rounded-sm ${
-                activitySet.has(day) ? "bg-teal-500" : "bg-surface-700"
-              }`}
+              className={`aspect-square w-full rounded-sm ${activitySet.has(day) ? "bg-teal-500" : "bg-surface-700"}`}
             />
           ))}
         </div>
         <p className="mt-3 text-xs text-gray-500">
-          {totalAttempts > 0
-            ? `${totalAttempts} attempt${totalAttempts !== 1 ? "s" : ""} across ${completedLabIds.length} completed lab${completedLabIds.length !== 1 ? "s" : ""}.`
+          {attempts.length > 0
+            ? `${attempts.length} attempt${attempts.length !== 1 ? "s" : ""} across ${completedLabIds.length} completed lab${completedLabIds.length !== 1 ? "s" : ""}.`
             : "Start a lab to begin tracking your progress."}
         </p>
       </section>
 
-      {/* CTAs */}
       <section className="flex gap-4">
-        <Link
-          href="/curriculum"
-          className="rounded-lg bg-teal-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-teal-700 transition-colors"
-        >
+        <Link href="/curriculum" className="rounded-lg bg-teal-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-teal-700 transition-colors">
           Browse Curriculum
         </Link>
-        <Link
-          href="/lesson/a1"
-          className="rounded-lg border border-surface-600 px-5 py-2.5 text-sm font-semibold text-gray-300 hover:bg-surface-700 transition-colors"
-        >
+        <Link href="/lesson/a1" className="rounded-lg border border-surface-600 px-5 py-2.5 text-sm font-semibold text-gray-300 hover:bg-surface-700 transition-colors">
           Start Lab A1 →
         </Link>
       </section>

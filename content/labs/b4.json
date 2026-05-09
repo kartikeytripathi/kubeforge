@@ -1,0 +1,30 @@
+{
+  "id": "b4",
+  "title": "Scale a StatefulSet and verify stable pod identity",
+  "difficulty": "intermediate",
+  "estimatedMinutes": 30,
+  "realWorldIncident": false,
+  "scenario": "The `postgres` StatefulSet was accidentally deployed with only 1 replica. The application expects a 3-node cluster with pods named `postgres-0`, `postgres-1`, and `postgres-2`, each backed by its own 1Gi persistent volume from the `fast-ssd` StorageClass. Scale the StatefulSet to 3 replicas and confirm each pod gets a stable identity and its own PVC.",
+  "hiddenSetup": [
+    {
+      "kind": "StorageClass",
+      "metadata": { "name": "fast-ssd" },
+      "provisioner": "kubernetes.io/no-provisioner",
+      "volumeBindingMode": "Immediate",
+      "reclaimPolicy": "Delete"
+    }
+  ],
+  "starterYaml": "apiVersion: apps/v1\nkind: StatefulSet\nmetadata:\n  name: postgres\n  namespace: default\nspec:\n  serviceName: postgres\n  replicas: 1\n  selector:\n    matchLabels:\n      app: postgres\n  template:\n    metadata:\n      labels:\n        app: postgres\n    spec:\n      containers:\n      - name: postgres\n        image: postgres:15-alpine\n        env:\n        - name: POSTGRES_PASSWORD\n          value: \"changeme\"\n        ports:\n        - containerPort: 5432\n        volumeMounts:\n        - name: data\n          mountPath: /var/lib/postgresql/data\n  volumeClaimTemplates:\n  - metadata:\n      name: data\n    spec:\n      storageClassName: fast-ssd\n      accessModes:\n      - ReadWriteOnce\n      resources:\n        requests:\n          storage: 1Gi\n---\napiVersion: v1\nkind: Service\nmetadata:\n  name: postgres\n  namespace: default\nspec:\n  clusterIP: None\n  selector:\n    app: postgres\n  ports:\n  - port: 5432\n    targetPort: 5432\n",
+  "objectives": [
+    { "id": "sts-exists",      "description": "StatefulSet `postgres` exists in the `default` namespace" },
+    { "id": "replicas-3",      "description": "StatefulSet has `replicas: 3`" },
+    { "id": "pods-running",    "description": "Pods `postgres-0`, `postgres-1`, and `postgres-2` are all Running" },
+    { "id": "pvc-templates",   "description": "`volumeClaimTemplates` defines storage request of at least `1Gi`" }
+  ],
+  "hints": [
+    { "revealAfterMs": 60000,  "text": "The only change needed is `replicas: 1` → `replicas: 3`. StatefulSets create pods one at a time in order — postgres-0 must be Running before postgres-1 starts." },
+    { "revealAfterMs": 120000, "text": "The `volumeClaimTemplates` section automatically provisions a PVC named `data-postgres-0`, `data-postgres-1`, `data-postgres-2` for each pod. You do not need to create PVCs manually." },
+    { "revealAfterMs": 180000, "text": "If a pod is stuck, check `kubectl describe pvc data-postgres-1`. The `fast-ssd` StorageClass is already provisioned in the hidden setup — the PVC should bind automatically." }
+  ],
+  "solution": "apiVersion: apps/v1\nkind: StatefulSet\nmetadata:\n  name: postgres\n  namespace: default\nspec:\n  serviceName: postgres\n  replicas: 3\n  selector:\n    matchLabels:\n      app: postgres\n  template:\n    metadata:\n      labels:\n        app: postgres\n    spec:\n      containers:\n      - name: postgres\n        image: postgres:15-alpine\n        env:\n        - name: POSTGRES_PASSWORD\n          value: \"changeme\"\n        ports:\n        - containerPort: 5432\n        volumeMounts:\n        - name: data\n          mountPath: /var/lib/postgresql/data\n  volumeClaimTemplates:\n  - metadata:\n      name: data\n    spec:\n      storageClassName: fast-ssd\n      accessModes:\n      - ReadWriteOnce\n      resources:\n        requests:\n          storage: 1Gi\n---\napiVersion: v1\nkind: Service\nmetadata:\n  name: postgres\n  namespace: default\nspec:\n  clusterIP: None\n  selector:\n    app: postgres\n  ports:\n  - port: 5432\n    targetPort: 5432\n"
+}

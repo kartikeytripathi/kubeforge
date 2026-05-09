@@ -9,6 +9,16 @@ import { verifyA5 } from "@/lib/verifiers/a5";
 import { verifyA6 } from "@/lib/verifiers/a6";
 import { verifyA7 } from "@/lib/verifiers/a7";
 import { verifyA8 } from "@/lib/verifiers/a8";
+import { verifyB1 } from "@/lib/verifiers/b1";
+import { verifyB2 } from "@/lib/verifiers/b2";
+import { verifyB3 } from "@/lib/verifiers/b3";
+import { verifyB4 } from "@/lib/verifiers/b4";
+import { verifyB5 } from "@/lib/verifiers/b5";
+import { verifyB6 } from "@/lib/verifiers/b6";
+import { verifyB7 } from "@/lib/verifiers/b7";
+import { verifyB8 } from "@/lib/verifiers/b8";
+import { verifyB9 } from "@/lib/verifiers/b9";
+import { verifyB10 } from "@/lib/verifiers/b10";
 import type { LabDefinition, VerifierFn } from "@/lib/verifiers/types";
 
 const VERIFIERS: Record<string, VerifierFn> = {
@@ -20,6 +30,16 @@ const VERIFIERS: Record<string, VerifierFn> = {
   a6: verifyA6,
   a7: verifyA7,
   a8: verifyA8,
+  b1: verifyB1,
+  b2: verifyB2,
+  b3: verifyB3,
+  b4: verifyB4,
+  b5: verifyB5,
+  b6: verifyB6,
+  b7: verifyB7,
+  b8: verifyB8,
+  b9: verifyB9,
+  b10: verifyB10,
 };
 
 const noopVerifier: VerifierFn = () => [];

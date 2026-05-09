@@ -1,0 +1,93 @@
+---
+title: "HorizontalPodAutoscaler"
+phase: "B"
+lessonId: "b9"
+---
+
+## Manual scaling is not sustainable
+
+In a Deployment, you can set `replicas: 5` and it stays at 5 forever. During a traffic spike, your pods get CPU-throttled and users see slow responses. At 3am on a quiet night, you are running 5 replicas and paying for them unnecessarily. The **HorizontalPodAutoscaler (HPA)** watches a metric and continuously adjusts the replica count to match demand.
+
+## How HPA works
+
+```
+HPA controller (runs every 15 seconds)
+    │
+    ├── reads current metric (e.g. CPU utilization) from Metrics Server
+    ├── compares to target (e.g. 70%)
+    └── adjusts Deployment.spec.replicas up or down
+```
+
+The formula: `desired replicas = ceil(current replicas × (current metric / target metric))`
+
+If you have 3 replicas at 90% CPU and target is 70%: `ceil(3 × 90/70)` = `ceil(3.86)` = 4 replicas.
+
+## A basic HPA (autoscaling/v2)
+
+```yaml
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: api-hpa
+  namespace: default
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: api
+  minReplicas: 2      # never scale below this
+  maxReplicas: 10     # never scale above this
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70   # target 70% CPU across all pods
+```
+
+## Key parameters to tune
+
+| Parameter | Too low | Too high |
+|---|---|---|
+| `minReplicas` | Single point of failure | Wastes money at idle |
+| `maxReplicas` | Pods get throttled during spikes | Uncapped cost |
+| `averageUtilization` | Constant scale-out churn | Pods are always saturated |
+
+`minReplicas: 2` is a production minimum — it provides redundancy when a node is drained or a pod is evicted.
+
+`averageUtilization: 70` is a widely used starting point. It leaves a 30% headroom for sudden traffic bursts before scale-out kicks in.
+
+## Scaling behaviour and cooldowns
+
+HPA has built-in stabilization windows to prevent flapping:
+
+```yaml
+behavior:
+  scaleDown:
+    stabilizationWindowSeconds: 300   # wait 5 min before scaling down
+  scaleUp:
+    stabilizationWindowSeconds: 0     # scale up immediately
+```
+
+Default scale-down stabilization is 5 minutes. This prevents a brief traffic dip from causing aggressive scale-in followed by immediate scale-out.
+
+## Requirements
+
+- The target Deployment's containers must have `resources.requests.cpu` set — HPA cannot calculate utilization without a baseline.
+- The **Metrics Server** must be installed in the cluster (it is included by default in EKS, GKE, and AKS).
+
+## Checking HPA status
+
+```bash
+kubectl get hpa api-hpa
+# NAME      REFERENCE         TARGETS   MINPODS   MAXPODS   REPLICAS
+# api-hpa   Deployment/api    45%/70%   2         10        3
+```
+
+`TARGETS` shows current metric / target. When current exceeds target, replicas increase.
+
+## Further reading
+
+- [Horizontal Pod Autoscaling](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/)
+- [HPA walkthrough](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale-walkthrough/)

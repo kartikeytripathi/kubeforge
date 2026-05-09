@@ -1,0 +1,93 @@
+---
+title: "Incident response: Three simultaneous production failures"
+phase: "B"
+lessonId: "b10"
+---
+
+## Phase B synthesis
+
+Real production incidents rarely announce themselves one at a time. A deploy touches three components, an engineer fat-fingers a request value, and a node is tainted for maintenance — all within the same five-minute window. The ability to triage multiple failures in parallel, prioritize by impact, and apply targeted fixes is what separates a capable platform engineer from a panicking one.
+
+## The diagnostic framework
+
+When multiple things are broken, work through a standard triage order:
+
+```
+1. Impact assessment  — which failure affects the most users right now?
+2. Symptom grouping   — cluster symptoms into categories (probe, scheduling, config)
+3. Independent fixes  — each fix should be isolated and applied separately
+4. Verification       — confirm each fix before moving to the next
+```
+
+## Failure class 1: Probe typo causing constant restarts
+
+A liveness probe with path `/heathz` instead of `/healthz` causes the kubelet to send an HTTP GET to a nonexistent path. The server returns 404. The kubelet counts this as a probe failure. After `failureThreshold` failures, the container is killed and restarted. You see increasing `RESTARTS` in `kubectl get pods`.
+
+**Triage signal:** High restart count, not CrashLoopBackOff.
+
+```bash
+kubectl describe pod <api-pod> | grep -A5 "Liveness:"
+# Liveness: http-get http://:80/heathz ...
+```
+
+**Fix:** correct the probe path in the Deployment spec, then `kubectl apply`. A rolling update replaces pods with the corrected probe.
+
+## Failure class 2: Over-requested CPU causing Pending pods
+
+Pods remain in `Pending` when the scheduler cannot find a node with enough unreserved CPU. With 2 nodes at 2000m each (4000m total) and 2 worker pods each requesting 2000m (4000m needed), no room remains for system pods and the workers themselves cannot both fit.
+
+**Triage signal:** `kubectl get pods` shows `Pending`; `kubectl describe pod <worker-pod>` shows `Insufficient cpu`.
+
+```
+Nodes: 2 × 2000m = 4000m
+Requested: 2 × 2000m = 4000m  ← zero headroom for kube-system pods
+```
+
+**Fix:** reduce `resources.requests.cpu` to 600m per pod. Total: 2 × 600m = 1200m, well within budget.
+
+## Failure class 3: Missing toleration on a tainted node
+
+A DaemonSet that should run on every node will skip tainted nodes unless it carries a matching toleration. Node `sim-node-1` with taint `env=prod:NoSchedule` will not accept the logger pod, so `desiredNumberScheduled = 2` but `numberReady = 1`.
+
+**Triage signal:** `kubectl get daemonset logger` shows DESIRED=2, READY=1; `kubectl describe node sim-node-1` shows the taint.
+
+**Fix:**
+
+```yaml
+spec:
+  template:
+    spec:
+      tolerations:
+      - key: env
+        operator: Equal
+        value: prod
+        effect: NoSchedule
+```
+
+## Fix order recommendation
+
+| Priority | Failure | Rationale |
+|---|---|---|
+| 1 | Probe typo (`api`) | Users get 502 errors — most visible |
+| 2 | CPU over-request (`worker`) | Background jobs failing silently |
+| 3 | DaemonSet toleration (`logger`) | Log gaps — important but not user-facing |
+
+Apply each fix to the appropriate resource separately. With multi-document YAML you can apply all three in one command — but test the manifests first in a dry run:
+
+```bash
+kubectl apply -f fixes.yaml --dry-run=client
+```
+
+## After stabilization
+
+Once all three fixes are live:
+
+1. **Write a postmortem** — document the timeline, each root cause, and which monitoring alert caught (or missed) each failure.
+2. **Add alerts** — liveness probe path correctness is not alertable directly, but rising restart count is. Set an alert on `kube_pod_container_status_restarts_total > 5 in 5m`.
+3. **Add admission checks** — a validating webhook or OPA policy can reject probes pointing to nonexistent paths, and reject pod specs with requests that saturate an entire node.
+
+## Further reading
+
+- [Debugging Pods](https://kubernetes.io/docs/tasks/debug/debug-application/debug-pods/)
+- [Taints and Tolerations](https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/)
+- [Resource Management](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/)

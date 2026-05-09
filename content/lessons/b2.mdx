@@ -1,0 +1,84 @@
+---
+title: "Resource Requests & Limits"
+phase: "B"
+lessonId: "b2"
+---
+
+## The scheduler needs numbers
+
+When a pod is created, the Kubernetes scheduler must decide which node to place it on. It does not measure actual CPU usage — it compares the pod's declared `requests` against each node's available (allocatable) capacity. A node with 2 CPU allocatable and 1800m already requested has only 200m left to offer new pods.
+
+## Requests vs. limits
+
+```yaml
+resources:
+  requests:
+    cpu: "500m"      # scheduler guarantee — "reserve this much"
+    memory: "256Mi"  # also used for OOM kill priority
+  limits:
+    cpu: "1000m"     # hard ceiling — container is throttled above this
+    memory: "512Mi"  # container is OOM-killed if it exceeds this
+```
+
+| Field | What it controls |
+|---|---|
+| `requests.cpu` | How much CPU the scheduler reserves on the node |
+| `limits.cpu` | CPU throttle ceiling (container slows, not killed) |
+| `requests.memory` | Used to rank pods for eviction under memory pressure |
+| `limits.memory` | Container is terminated (OOMKilled) if exceeded |
+
+## CPU units
+
+`1` = 1 full core. `500m` = 500 millicores = half a core. You can also write `0.5`. CPU is compressible — exceeding the limit causes throttling, not termination.
+
+## Why pods go Pending
+
+When no node has enough unreserved CPU (or memory) to satisfy a pod's `requests`, the scheduler emits an event:
+
+```
+0/2 nodes are available: 2 Insufficient cpu.
+```
+
+This is a scheduling failure, not a node failure. Diagnose it with `kubectl describe pod <pending-pod>`.
+
+## Capacity math example
+
+| Node | Allocatable CPU | Already requested | Available |
+|---|---|---|---|
+| sim-node-1 | 2000m | 1400m | 600m |
+| sim-node-2 | 2000m | 1600m | 400m |
+
+A pod requesting 800m cannot fit on either node. A pod requesting 500m fits on sim-node-1.
+
+## Right-sizing requests
+
+Setting requests too high causes scheduling failures and wastes money. Setting them too low means your pod may be evicted or throttled under load. A good starting point:
+
+1. Run the app under realistic load
+2. Observe actual usage with `kubectl top pods`
+3. Set `requests` ≈ average usage, `limits` ≈ peak usage × 1.5
+
+## LimitRange and ResourceQuota
+
+For multi-team clusters, use a `LimitRange` to enforce default requests/limits per namespace, and a `ResourceQuota` to cap total consumption:
+
+```yaml
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: default-limits
+spec:
+  limits:
+  - type: Container
+    default:
+      cpu: "500m"
+      memory: "256Mi"
+    defaultRequest:
+      cpu: "100m"
+      memory: "64Mi"
+```
+
+## Further reading
+
+- [Resource Management for Pods and Containers](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/)
+- [Configure Quality of Service for Pods](https://kubernetes.io/docs/tasks/configure-pod-container/quality-service-pod/)

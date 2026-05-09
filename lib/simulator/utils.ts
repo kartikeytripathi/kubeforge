@@ -1,4 +1,4 @@
-import type { Labels } from "./types";
+import type { Labels, ContainerSpec } from "./types";
 
 let _uidCounter = 0;
 export function generateUid(): string {
@@ -40,10 +40,18 @@ const CRASHING_COMMANDS = [
 
 const CRASHING_IMAGES = ["crash:latest", "broken:v1", "broken:latest"];
 
+// Liveness probe paths that simulate a permanently-failing probe
+const BROKEN_PROBE_PATHS = new Set(["/heathz", "/helthz", "/healthcheck-bad", "/heatthz"]);
+
 /** Determine if the container spec will cause a crash loop */
-export function willCrash(container: { image: string; command?: string[]; args?: string[] }): boolean {
+export function willCrash(container: ContainerSpec | { image: string; command?: string[]; args?: string[] }): boolean {
   if (CRASHING_IMAGES.includes(container.image)) return true;
 
-  const cmdStr = [...(container.command ?? []), ...(container.args ?? [])].join(" ");
-  return CRASHING_COMMANDS.some((p) => cmdStr.includes(p));
+  const cmdStr = [...(container.command ?? []), ...((container as ContainerSpec).args ?? [])].join(" ");
+  if (CRASHING_COMMANDS.some((p) => cmdStr.includes(p))) return true;
+
+  const livePath = (container as ContainerSpec).livenessProbe?.httpGet?.path;
+  if (livePath && BROKEN_PROBE_PATHS.has(livePath)) return true;
+
+  return false;
 }

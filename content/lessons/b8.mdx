@@ -1,0 +1,101 @@
+---
+title: "RBAC: ServiceAccounts, Roles & RoleBindings"
+phase: "B"
+lessonId: "b8"
+---
+
+## Why RBAC matters
+
+By default, every pod in Kubernetes can talk to the API server using the `default` ServiceAccount, which has no permissions (in a correctly hardened cluster). If a pod needs to discover other pods, read Secrets, or patch Deployments, you must explicitly grant it those permissions using **Role-Based Access Control (RBAC)**.
+
+## The four RBAC objects
+
+| Object | Scope | Purpose |
+|---|---|---|
+| `ServiceAccount` | Namespace | An identity for a pod (like a user, but for workloads) |
+| `Role` | Namespace | A set of permissions on resources within one namespace |
+| `ClusterRole` | Cluster-wide | A set of permissions across all namespaces |
+| `RoleBinding` | Namespace | Grants a Role to a ServiceAccount (or user/group) |
+| `ClusterRoleBinding` | Cluster-wide | Grants a ClusterRole cluster-wide |
+
+## Creating a minimal RBAC setup
+
+```yaml
+# 1. The identity
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: monitor-sa
+  namespace: default
+---
+# 2. The permissions
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: pod-reader
+  namespace: default
+rules:
+- apiGroups: [""]       # "" = core API group (pods, services, etc.)
+  resources: ["pods"]
+  verbs: ["get", "list", "watch"]
+---
+# 3. Link identity to permissions
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: pod-reader-binding
+  namespace: default
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: pod-reader
+subjects:
+- kind: ServiceAccount
+  name: monitor-sa
+  namespace: default
+```
+
+## Understanding verbs
+
+| Verb | HTTP equivalent | What it allows |
+|---|---|---|
+| `get` | GET /resource/name | Fetch a single resource by name |
+| `list` | GET /resource | List all resources (collection) |
+| `watch` | GET /resource?watch=1 | Stream changes |
+| `create` | POST /resource | Create a new resource |
+| `update` | PUT /resource/name | Full replacement |
+| `patch` | PATCH /resource/name | Partial update |
+| `delete` | DELETE /resource/name | Delete a resource |
+
+`get` and `list` are different — a monitoring agent that calls `kubectl get pods` (list) needs the `list` verb, not just `get`.
+
+## Assigning a ServiceAccount to a pod
+
+```yaml
+spec:
+  serviceAccountName: monitor-sa   # use this identity
+  automountServiceAccountToken: true  # default true — mount the token
+```
+
+The pod can then call the API server using the mounted token at `/var/run/secrets/kubernetes.io/serviceaccount/token`.
+
+## Verifying permissions
+
+```bash
+# Can monitor-sa list pods?
+kubectl auth can-i list pods \
+  --as=system:serviceaccount:default:monitor-sa
+
+# List what a ServiceAccount can do
+kubectl auth can-i --list \
+  --as=system:serviceaccount:default:monitor-sa
+```
+
+## Principle of least privilege
+
+Grant only the permissions a workload actually needs. Avoid `ClusterRoleBinding` unless the workload genuinely needs cross-namespace access. Prefer narrow `verbs` lists over wildcard `["*"]`. Audit bindings regularly.
+
+## Further reading
+
+- [RBAC Authorization](https://kubernetes.io/docs/reference/access-authn-authz/rbac/)
+- [Configure Service Accounts](https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/)

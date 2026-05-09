@@ -12,6 +12,16 @@ import type {
   SimPersistentVolume,
   SimPersistentVolumeClaim,
   SimStorageClass,
+  SimStatefulSet,
+  SimDaemonSet,
+  SimJob,
+  SimCronJob,
+  SimIngress,
+  SimServiceAccount,
+  SimRole,
+  SimClusterRole,
+  SimRoleBinding,
+  SimHPA,
   Labels,
 } from "./types";
 import { generateUid, labelsMatch } from "./utils";
@@ -19,6 +29,9 @@ import {
   reconcileDeployments,
   reconcileReplicaSets,
   reconcilePersistentVolumeClaims,
+  reconcileStatefulSets,
+  reconcileDaemonSets,
+  reconcileJobs,
   schedulePods,
   updatePodStatus,
 } from "./reconciler";
@@ -37,11 +50,11 @@ function defaultState(): ClusterState {
           uid: "node-1",
           creationTimestamp: Date.now(),
         },
-        spec: {},
+        spec: { taints: [] },
         status: {
           phase: "Ready",
-          allocatable: { cpu: 4000, memory: 8192 },
-          capacity: { cpu: 4000, memory: 8192 },
+          allocatable: { cpu: 2000, memory: 8192 },
+          capacity: { cpu: 2000, memory: 8192 },
           addresses: [{ type: "InternalIP", address: "10.0.0.1" }],
         },
       },
@@ -53,11 +66,11 @@ function defaultState(): ClusterState {
           uid: "node-2",
           creationTimestamp: Date.now(),
         },
-        spec: {},
+        spec: { taints: [] },
         status: {
           phase: "Ready",
-          allocatable: { cpu: 4000, memory: 8192 },
-          capacity: { cpu: 4000, memory: 8192 },
+          allocatable: { cpu: 2000, memory: 8192 },
+          capacity: { cpu: 2000, memory: 8192 },
           addresses: [{ type: "InternalIP", address: "10.0.0.2" }],
         },
       },
@@ -72,6 +85,16 @@ function defaultState(): ClusterState {
     persistentVolumeClaims: [],
     storageClasses: [],
     namespaces: [],
+    statefulSets: [],
+    daemonSets: [],
+    jobs: [],
+    cronJobs: [],
+    ingresses: [],
+    serviceAccounts: [],
+    roles: [],
+    clusterRoles: [],
+    roleBindings: [],
+    hpas: [],
     events: [],
   };
 }
@@ -337,6 +360,133 @@ function applyManifest(state: ClusterState, doc: any): void {
       break;
     }
 
+    case "StatefulSet": {
+      const existing = state.statefulSets.findIndex((s) => s.metadata.name === name && s.metadata.namespace === namespace);
+      const ss: SimStatefulSet = {
+        kind: "StatefulSet", apiVersion: "apps/v1",
+        metadata: { name, namespace, labels: doc.metadata?.labels ?? {}, uid: existing >= 0 ? state.statefulSets[existing].metadata.uid : generateUid(), creationTimestamp: existing >= 0 ? state.statefulSets[existing].metadata.creationTimestamp : Date.now() },
+        spec: { replicas: doc.spec?.replicas ?? 1, selector: doc.spec?.selector ?? { matchLabels: {} }, serviceName: doc.spec?.serviceName ?? name, template: doc.spec?.template ?? { metadata: { labels: {} }, spec: { containers: [] } }, volumeClaimTemplates: doc.spec?.volumeClaimTemplates },
+        status: { replicas: 0, readyReplicas: 0, currentReplicas: 0 },
+      };
+      if (existing >= 0) state.statefulSets[existing] = ss; else state.statefulSets.push(ss);
+      break;
+    }
+
+    case "DaemonSet": {
+      const existing = state.daemonSets.findIndex((d) => d.metadata.name === name && d.metadata.namespace === namespace);
+      const ds: SimDaemonSet = {
+        kind: "DaemonSet", apiVersion: "apps/v1",
+        metadata: { name, namespace, labels: doc.metadata?.labels ?? {}, uid: existing >= 0 ? state.daemonSets[existing].metadata.uid : generateUid(), creationTimestamp: existing >= 0 ? state.daemonSets[existing].metadata.creationTimestamp : Date.now() },
+        spec: { selector: doc.spec?.selector ?? { matchLabels: {} }, template: doc.spec?.template ?? { metadata: { labels: {} }, spec: { containers: [] } } },
+        status: { desiredNumberScheduled: 0, numberReady: 0, numberAvailable: 0 },
+      };
+      if (existing >= 0) state.daemonSets[existing] = ds; else state.daemonSets.push(ds);
+      break;
+    }
+
+    case "Job": {
+      const existing = state.jobs.findIndex((j) => j.metadata.name === name && j.metadata.namespace === namespace);
+      const job: SimJob = {
+        kind: "Job", apiVersion: "batch/v1",
+        metadata: { name, namespace, labels: doc.metadata?.labels ?? {}, uid: existing >= 0 ? state.jobs[existing].metadata.uid : generateUid(), creationTimestamp: existing >= 0 ? state.jobs[existing].metadata.creationTimestamp : Date.now() },
+        spec: { completions: doc.spec?.completions ?? 1, parallelism: doc.spec?.parallelism ?? 1, template: doc.spec?.template ?? { metadata: { labels: {} }, spec: { containers: [], restartPolicy: "Never" } } },
+        status: existing >= 0 ? state.jobs[existing].status : { active: 0, succeeded: 0, failed: 0 },
+      };
+      if (existing >= 0) state.jobs[existing] = job; else state.jobs.push(job);
+      break;
+    }
+
+    case "CronJob": {
+      const existing = state.cronJobs.findIndex((c) => c.metadata.name === name && c.metadata.namespace === namespace);
+      const cj: SimCronJob = {
+        kind: "CronJob", apiVersion: "batch/v1",
+        metadata: { name, namespace, labels: doc.metadata?.labels ?? {}, uid: existing >= 0 ? state.cronJobs[existing].metadata.uid : generateUid(), creationTimestamp: existing >= 0 ? state.cronJobs[existing].metadata.creationTimestamp : Date.now() },
+        spec: { schedule: doc.spec?.schedule ?? "0 * * * *", jobTemplate: doc.spec?.jobTemplate ?? { spec: { template: { spec: { containers: [], restartPolicy: "Never" } } } }, suspend: doc.spec?.suspend },
+        status: {},
+      };
+      if (existing >= 0) state.cronJobs[existing] = cj; else state.cronJobs.push(cj);
+      break;
+    }
+
+    case "Ingress": {
+      const existing = state.ingresses.findIndex((i) => i.metadata.name === name && i.metadata.namespace === namespace);
+      const ing: SimIngress = {
+        kind: "Ingress", apiVersion: "networking.k8s.io/v1",
+        metadata: { name, namespace, labels: doc.metadata?.labels ?? {}, uid: existing >= 0 ? state.ingresses[existing].metadata.uid : generateUid(), creationTimestamp: existing >= 0 ? state.ingresses[existing].metadata.creationTimestamp : Date.now(), annotations: doc.metadata?.annotations },
+        spec: { ingressClassName: doc.spec?.ingressClassName, rules: doc.spec?.rules, tls: doc.spec?.tls },
+        status: {},
+      };
+      if (existing >= 0) state.ingresses[existing] = ing; else state.ingresses.push(ing);
+      break;
+    }
+
+    case "ServiceAccount": {
+      const existing = state.serviceAccounts.findIndex((s) => s.metadata.name === name && s.metadata.namespace === namespace);
+      const sa: SimServiceAccount = {
+        kind: "ServiceAccount", apiVersion: "v1",
+        metadata: { name, namespace, labels: doc.metadata?.labels ?? {}, uid: existing >= 0 ? state.serviceAccounts[existing].metadata.uid : generateUid(), creationTimestamp: existing >= 0 ? state.serviceAccounts[existing].metadata.creationTimestamp : Date.now() },
+      };
+      if (existing >= 0) state.serviceAccounts[existing] = sa; else state.serviceAccounts.push(sa);
+      break;
+    }
+
+    case "Role": {
+      const existing = state.roles.findIndex((r) => r.metadata.name === name && r.metadata.namespace === namespace);
+      const role: SimRole = {
+        kind: "Role", apiVersion: "rbac.authorization.k8s.io/v1",
+        metadata: { name, namespace, labels: doc.metadata?.labels ?? {}, uid: existing >= 0 ? state.roles[existing].metadata.uid : generateUid(), creationTimestamp: existing >= 0 ? state.roles[existing].metadata.creationTimestamp : Date.now() },
+        rules: doc.rules ?? [],
+      };
+      if (existing >= 0) state.roles[existing] = role; else state.roles.push(role);
+      break;
+    }
+
+    case "ClusterRole": {
+      const existing = state.clusterRoles.findIndex((r) => r.metadata.name === name);
+      const cr: SimClusterRole = {
+        kind: "ClusterRole", apiVersion: "rbac.authorization.k8s.io/v1",
+        metadata: { name, labels: doc.metadata?.labels ?? {}, uid: existing >= 0 ? state.clusterRoles[existing].metadata.uid : generateUid(), creationTimestamp: existing >= 0 ? state.clusterRoles[existing].metadata.creationTimestamp : Date.now() },
+        rules: doc.rules ?? [],
+      };
+      if (existing >= 0) state.clusterRoles[existing] = cr; else state.clusterRoles.push(cr);
+      break;
+    }
+
+    case "RoleBinding": {
+      const existing = state.roleBindings.findIndex((r) => r.metadata.name === name && r.metadata.namespace === namespace);
+      const rb: SimRoleBinding = {
+        kind: "RoleBinding", apiVersion: "rbac.authorization.k8s.io/v1",
+        metadata: { name, namespace, labels: doc.metadata?.labels ?? {}, uid: existing >= 0 ? state.roleBindings[existing].metadata.uid : generateUid(), creationTimestamp: existing >= 0 ? state.roleBindings[existing].metadata.creationTimestamp : Date.now() },
+        subjects: doc.subjects ?? [],
+        roleRef: doc.roleRef ?? { kind: "Role", name: "", apiGroup: "rbac.authorization.k8s.io" },
+      };
+      if (existing >= 0) state.roleBindings[existing] = rb; else state.roleBindings.push(rb);
+      break;
+    }
+
+    case "HorizontalPodAutoscaler": {
+      const existing = state.hpas.findIndex((h) => h.metadata.name === name && h.metadata.namespace === namespace);
+      const hpa: SimHPA = {
+        kind: "HorizontalPodAutoscaler", apiVersion: "autoscaling/v2",
+        metadata: { name, namespace, labels: doc.metadata?.labels ?? {}, uid: existing >= 0 ? state.hpas[existing].metadata.uid : generateUid(), creationTimestamp: existing >= 0 ? state.hpas[existing].metadata.creationTimestamp : Date.now() },
+        spec: { scaleTargetRef: doc.spec?.scaleTargetRef ?? { apiVersion: "apps/v1", kind: "Deployment", name: "" }, minReplicas: doc.spec?.minReplicas ?? 1, maxReplicas: doc.spec?.maxReplicas ?? 10, metrics: doc.spec?.metrics },
+        status: { currentReplicas: 0, desiredReplicas: 0 },
+      };
+      if (existing >= 0) state.hpas[existing] = hpa; else state.hpas.push(hpa);
+      break;
+    }
+
+    case "Node": {
+      const idx = state.nodes.findIndex((n) => n.metadata.name === name);
+      if (idx !== -1) {
+        state.nodes[idx] = {
+          ...state.nodes[idx],
+          spec: { ...state.nodes[idx].spec, ...(doc.spec ?? {}) },
+        };
+      }
+      break;
+    }
+
     default:
       break;
   }
@@ -367,6 +517,9 @@ export class ClusterSimulator {
     this.state.tick++;
     reconcileDeployments(this.state);
     reconcileReplicaSets(this.state);
+    reconcileStatefulSets(this.state);
+    reconcileDaemonSets(this.state);
+    reconcileJobs(this.state);
     reconcilePersistentVolumeClaims(this.state);
     schedulePods(this.state);
     updatePodStatus(this.state);
@@ -425,6 +578,46 @@ export class ClusterSimulator {
 
   getStorageClasses(): SimStorageClass[] {
     return this.state.storageClasses;
+  }
+
+  getStatefulSets(namespace?: string): SimStatefulSet[] {
+    return namespace ? this.state.statefulSets.filter((s) => s.metadata.namespace === namespace) : this.state.statefulSets;
+  }
+
+  getDaemonSets(namespace?: string): SimDaemonSet[] {
+    return namespace ? this.state.daemonSets.filter((d) => d.metadata.namespace === namespace) : this.state.daemonSets;
+  }
+
+  getJobs(namespace?: string): SimJob[] {
+    return namespace ? this.state.jobs.filter((j) => j.metadata.namespace === namespace) : this.state.jobs;
+  }
+
+  getCronJobs(namespace?: string): SimCronJob[] {
+    return namespace ? this.state.cronJobs.filter((c) => c.metadata.namespace === namespace) : this.state.cronJobs;
+  }
+
+  getIngresses(namespace?: string): SimIngress[] {
+    return namespace ? this.state.ingresses.filter((i) => i.metadata.namespace === namespace) : this.state.ingresses;
+  }
+
+  getServiceAccounts(namespace?: string): SimServiceAccount[] {
+    return namespace ? this.state.serviceAccounts.filter((s) => s.metadata.namespace === namespace) : this.state.serviceAccounts;
+  }
+
+  getRoles(namespace?: string): SimRole[] {
+    return namespace ? this.state.roles.filter((r) => r.metadata.namespace === namespace) : this.state.roles;
+  }
+
+  getClusterRoles(): SimClusterRole[] {
+    return this.state.clusterRoles;
+  }
+
+  getRoleBindings(namespace?: string): SimRoleBinding[] {
+    return namespace ? this.state.roleBindings.filter((r) => r.metadata.namespace === namespace) : this.state.roleBindings;
+  }
+
+  getHPAs(namespace?: string): SimHPA[] {
+    return namespace ? this.state.hpas.filter((h) => h.metadata.namespace === namespace) : this.state.hpas;
   }
 
   getEvents(): ClusterState["events"] {

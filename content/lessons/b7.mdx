@@ -1,0 +1,116 @@
+---
+title: "Ingress"
+phase: "B"
+lessonId: "b7"
+---
+
+## The problem with NodePort and LoadBalancer per service
+
+A production application typically has many Services: a frontend, an API, an admin panel. Exposing each with its own `LoadBalancer` Service means paying for a separate cloud load balancer per Service and managing multiple external IPs. **Ingress** solves this by providing a single entry point that routes to many Services based on URL path or hostname.
+
+## Ingress architecture
+
+```
+Internet
+    │
+    ▼
+[ Ingress Controller ]  (nginx, AWS ALB, Traefik, etc.)
+    │
+    ├── /          →  frontend-svc:80
+    ├── /api       →  api-svc:8080
+    └── /admin     →  admin-svc:3000
+```
+
+An **Ingress** resource is just a configuration object. An **Ingress Controller** is the actual running process (a pod) that reads Ingress resources and configures the underlying load balancer.
+
+## A minimal Ingress
+
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: app-ingress
+  namespace: default
+spec:
+  ingressClassName: nginx
+  rules:
+  - http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: frontend-svc
+            port:
+              number: 80
+      - path: /api
+        pathType: Prefix
+        backend:
+          service:
+            name: api-svc
+            port:
+              number: 8080
+```
+
+## Path types
+
+| pathType | Behaviour |
+|---|---|
+| `Prefix` | Matches any URL that starts with the path (`/api` matches `/api`, `/api/users`, `/api/v2/orders`) |
+| `Exact` | Only matches the exact path (`/api` does not match `/api/users`) |
+| `ImplementationSpecific` | Behaviour defined by the Ingress controller |
+
+## Path ordering matters
+
+Some Ingress controllers match paths in declaration order (first match wins). Others evaluate most-specific first. Put longer, more specific paths before shorter, catch-all paths for consistent behaviour:
+
+```yaml
+paths:
+- path: /api        # specific first
+  ...
+- path: /           # catch-all last
+  ...
+```
+
+## Host-based routing
+
+You can also route by hostname instead of path:
+
+```yaml
+rules:
+- host: api.example.com
+  http:
+    paths:
+    - path: /
+      pathType: Prefix
+      backend:
+        service:
+          name: api-svc
+          port:
+            number: 8080
+- host: www.example.com
+  http:
+    paths:
+    - path: /
+      ...
+```
+
+## TLS termination
+
+```yaml
+spec:
+  tls:
+  - hosts:
+    - api.example.com
+    secretName: api-tls-secret   # Secret with tls.crt and tls.key
+  rules:
+  - host: api.example.com
+    ...
+```
+
+On EKS, the AWS Load Balancer Controller can provision an ALB that terminates TLS using ACM certificates, avoiding the need to store certificates in Kubernetes Secrets.
+
+## Further reading
+
+- [Ingress](https://kubernetes.io/docs/concepts/services-networking/ingress/)
+- [Ingress Controllers](https://kubernetes.io/docs/concepts/services-networking/ingress-controllers/)

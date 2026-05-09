@@ -1,5 +1,3 @@
-"use client";
-
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
@@ -15,29 +13,19 @@ export interface Completion {
   durationMs: number;
 }
 
+// Store holds only raw serializable state + mutations.
+// Derived values are pure functions below — call them in components
+// after selecting the raw arrays, so Zustand's Object.is comparison works.
 interface ProgressState {
   attempts: Attempt[];
   completions: Completion[];
-
   recordAttempt: (labId: string, passed: boolean) => void;
   recordCompletion: (labId: string, durationMs: number) => void;
-
-  // Derived helpers
-  completedLabIds: () => string[];
-  isCompleted: (labId: string) => boolean;
-  streak: () => number;
-  activityDays: () => string[]; // "YYYY-MM-DD" strings
-  ckaReadiness: () => number;   // 0-100
-  eksReadiness: () => number;   // 0-100 (0 until Phase D)
-}
-
-function toDateKey(epoch: number): string {
-  return new Date(epoch).toISOString().slice(0, 10);
 }
 
 export const useProgressStore = create<ProgressState>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       attempts: [],
       completions: [],
 
@@ -49,8 +37,7 @@ export const useProgressStore = create<ProgressState>()(
 
       recordCompletion(labId, durationMs) {
         set((s) => {
-          const already = s.completions.some((c) => c.labId === labId);
-          if (already) return s; // idempotent — first completion wins
+          if (s.completions.some((c) => c.labId === labId)) return s;
           return {
             completions: [
               ...s.completions,
@@ -59,66 +46,67 @@ export const useProgressStore = create<ProgressState>()(
           };
         });
       },
-
-      completedLabIds() {
-        return get().completions.map((c) => c.labId);
-      },
-
-      isCompleted(labId) {
-        return get().completions.some((c) => c.labId === labId);
-      },
-
-      streak() {
-        const days = new Set(
-          get().attempts.filter((a) => a.passed).map((a) => toDateKey(a.at))
-        );
-        if (days.size === 0) return 0;
-
-        let count = 0;
-        const cursor = new Date();
-        cursor.setHours(0, 0, 0, 0);
-
-        // Allow today or yesterday as the streak anchor
-        const todayKey = toDateKey(cursor.getTime());
-        cursor.setDate(cursor.getDate() - 1);
-        const yesterdayKey = toDateKey(cursor.getTime());
-
-        if (!days.has(todayKey) && !days.has(yesterdayKey)) return 0;
-
-        // Start counting from today backwards
-        const start = new Date();
-        start.setHours(0, 0, 0, 0);
-        for (let i = 0; i < 365; i++) {
-          const key = toDateKey(start.getTime());
-          if (!days.has(key)) break;
-          count++;
-          start.setDate(start.getDate() - 1);
-        }
-        return count;
-      },
-
-      activityDays() {
-        const days = new Set(
-          get().attempts.filter((a) => a.passed).map((a) => toDateKey(a.at))
-        );
-        return Array.from(days);
-      },
-
-      ckaReadiness() {
-        const phaseAIds = ["a1", "a2", "a3", "a4", "a5", "a6", "a7", "a8"];
-        const done = get().completedLabIds();
-        const phaseADone = phaseAIds.filter((id) => done.includes(id)).length;
-        // Phase A = 25% of CKA readiness
-        return Math.round((phaseADone / phaseAIds.length) * 25);
-      },
-
-      eksReadiness() {
-        return 0; // Phase D not yet implemented
-      },
     }),
-    {
-      name: "kubeforge-progress",
-      version: 1,
-    }
+    { name: "kubeforge-progress", version: 1 }
   )
 );
+
+// ─── Pure derived helpers ─────────────────────────────────────────────────────
+// Use these in components after selecting the raw arrays from the store.
+
+function toDateKey(epoch: number): string {
+  return new Date(epoch).toISOString().slice(0, 10);
+}
+
+export function getCompletedLabIds(completions: Completion[]): string[] {
+  return completions.map((c) => c.labId);
+}
+
+export function isLabCompleted(completions: Completion[], labId: string): boolean {
+  return completions.some((c) => c.labId === labId);
+}
+
+export function getStreak(attempts: Attempt[]): number {
+  const days = new Set(
+    attempts.filter((a) => a.passed).map((a) => toDateKey(a.at))
+  );
+  if (days.size === 0) return 0;
+
+  // Anchor: start from today; if today has no activity, start from yesterday
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+  if (!days.has(toDateKey(start.getTime()))) {
+    start.setDate(start.getDate() - 1);
+  }
+  // If neither today nor yesterday has activity, streak is 0
+  if (!days.has(toDateKey(start.getTime()))) return 0;
+
+  let count = 0;
+  const cursor = new Date(start);
+  for (let i = 0; i < 365; i++) {
+    if (!days.has(toDateKey(cursor.getTime()))) break;
+    count++;
+    cursor.setDate(cursor.getDate() - 1);
+  }
+  return count;
+}
+
+export function getActivityDays(attempts: Attempt[]): string[] {
+  const days = new Set(
+    attempts.filter((a) => a.passed).map((a) => toDateKey(a.at))
+  );
+  return Array.from(days);
+}
+
+const PHASE_A_IDS = ["a1", "a2", "a3", "a4", "a5", "a6", "a7", "a8"];
+
+export function getCkaReadiness(completions: Completion[]): number {
+  const done = new Set(completions.map((c) => c.labId));
+  const phaseADone = PHASE_A_IDS.filter((id) => done.has(id)).length;
+  // Phase A covers 25% of CKA readiness; B+C cover the remaining 75%
+  return Math.round((phaseADone / PHASE_A_IDS.length) * 25);
+}
+
+export function getEksReadiness(_completions: Completion[]): number {
+  return 0; // Phase D not yet implemented
+}

@@ -1,0 +1,89 @@
+---
+title: "Liveness, Readiness & Startup Probes"
+phase: "B"
+lessonId: "b1"
+---
+
+## Why probes exist
+
+Kubernetes cannot read your application's source code to know whether it is healthy. Probes are the mechanism you use to tell the kubelet how to check. Without them, a pod that is Running at the OS level but serving 500 errors or deadlocked will receive traffic indefinitely.
+
+## The three probe types
+
+| Probe | Failure action | Typical use |
+|---|---|---|
+| `livenessProbe` | Kill and restart the container | Detect deadlocks, infinite loops |
+| `readinessProbe` | Remove pod from Service endpoints | Signal "not ready for traffic yet" |
+| `startupProbe` | Block liveness/readiness until it passes | Slow-starting apps (JVM warm-up, DB migration) |
+
+## Probe mechanisms
+
+All three probe types support the same check mechanisms:
+
+```yaml
+# HTTP GET — most common for web servers
+livenessProbe:
+  httpGet:
+    path: /healthz   # must return 2xx–3xx
+    port: 8080
+
+# TCP socket — useful for non-HTTP services
+livenessProbe:
+  tcpSocket:
+    port: 5432
+
+# Exec command — runs inside the container
+livenessProbe:
+  exec:
+    command: ["pg_isready", "-U", "postgres"]
+```
+
+## Key timing fields
+
+```yaml
+livenessProbe:
+  httpGet:
+    path: /healthz
+    port: 80
+  initialDelaySeconds: 10   # wait before first check
+  periodSeconds: 10         # check every N seconds
+  failureThreshold: 3       # restart after 3 consecutive failures
+  timeoutSeconds: 1         # fail if no response within N seconds
+```
+
+`initialDelaySeconds` is critical for slow-starting containers — if the liveness probe fires before the app is ready, the container restarts in a loop even when the app would have started correctly.
+
+## Common mistakes
+
+**Typo in the path** — the most common real-world bug. `/heathz` instead of `/healthz` causes constant restarts. Always copy-paste the path from your application's actual health endpoint definition.
+
+**Liveness = readiness** — use separate paths when possible. A liveness failure restarts the pod (disruptive). A readiness failure merely stops traffic (graceful). Your `/healthz` (liveness) should only fail for truly unrecoverable states.
+
+**Too-aggressive thresholds** — `failureThreshold: 1` with `periodSeconds: 5` means one slow response restarts your container. Default `failureThreshold: 3` is a safer starting point.
+
+## Startup probes for slow apps
+
+```yaml
+startupProbe:
+  httpGet:
+    path: /healthz
+    port: 8080
+  failureThreshold: 30    # 30 × 10s = 5 minutes maximum startup window
+  periodSeconds: 10
+```
+
+Once the startup probe succeeds, liveness and readiness probes take over. This prevents premature restarts during initialization.
+
+## Summary
+
+| Field | Purpose |
+|---|---|
+| `initialDelaySeconds` | Grace period before first probe |
+| `periodSeconds` | How often to check |
+| `failureThreshold` | Consecutive failures before action |
+| `successThreshold` | Consecutive successes to become healthy (readiness only) |
+| `timeoutSeconds` | Per-check deadline |
+
+## Further reading
+
+- [Configure Liveness, Readiness and Startup Probes](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/)

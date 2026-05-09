@@ -1,0 +1,23 @@
+{
+  "id": "b6",
+  "title": "Fix the broken Job and schedule a CronJob",
+  "difficulty": "intermediate",
+  "estimatedMinutes": 25,
+  "realWorldIncident": false,
+  "scenario": "Two problems have been found in the CI/CD pipeline. First, the `db-migrate` Job has `completions: 0` which means Kubernetes never runs any pod. Second, the `db-backup` CronJob has a malformed cron schedule `* * * *` (only 4 fields — cron requires 5). Fix both issues: the Job should run exactly once to completion, and the CronJob should trigger every hour.",
+  "hiddenSetup": [],
+  "starterYaml": "apiVersion: batch/v1\nkind: Job\nmetadata:\n  name: db-migrate\n  namespace: default\nspec:\n  completions: 0\n  backoffLimit: 3\n  template:\n    spec:\n      restartPolicy: Never\n      containers:\n      - name: migrate\n        image: alpine:3.18\n        command: [\"/bin/sh\", \"-c\", \"echo Running DB migrations...; sleep 5; echo Done\"]\n        resources:\n          requests:\n            cpu: \"100m\"\n            memory: \"64Mi\"\n---\napiVersion: batch/v1\nkind: CronJob\nmetadata:\n  name: db-backup\n  namespace: default\nspec:\n  schedule: \"* * * *\"\n  jobTemplate:\n    spec:\n      template:\n        spec:\n          restartPolicy: Never\n          containers:\n          - name: backup\n            image: alpine:3.18\n            command: [\"/bin/sh\", \"-c\", \"echo Backing up database...; sleep 10; echo Backup done\"]\n            resources:\n              requests:\n                cpu: \"100m\"\n                memory: \"64Mi\"\n",
+  "objectives": [
+    { "id": "job-exists",        "description": "Job `db-migrate` exists in the `default` namespace" },
+    { "id": "job-completions",   "description": "Job `completions` is set to `1`" },
+    { "id": "job-succeeded",     "description": "Job pod has `Succeeded` status" },
+    { "id": "cronjob-exists",    "description": "CronJob `db-backup` exists in the `default` namespace" },
+    { "id": "cronjob-schedule",  "description": "CronJob schedule is a valid 5-field cron expression" }
+  ],
+  "hints": [
+    { "revealAfterMs": 60000,  "text": "For the Job: `completions: 0` tells Kubernetes to run zero pods and immediately consider the Job complete — nothing actually runs. Change it to `completions: 1`." },
+    { "revealAfterMs": 120000, "text": "For the CronJob: a cron expression has 5 fields (minute hour day-of-month month day-of-week). `* * * *` only has 4. For every hour, use `0 * * * *`." },
+    { "revealAfterMs": 180000, "text": "Remember you cannot edit a running Job's spec — delete it first with `kubectl delete job db-migrate`, then re-apply with `completions: 1`. The CronJob can be patched in place." }
+  ],
+  "solution": "apiVersion: batch/v1\nkind: Job\nmetadata:\n  name: db-migrate\n  namespace: default\nspec:\n  completions: 1\n  backoffLimit: 3\n  template:\n    spec:\n      restartPolicy: Never\n      containers:\n      - name: migrate\n        image: alpine:3.18\n        command: [\"/bin/sh\", \"-c\", \"echo Running DB migrations...; sleep 5; echo Done\"]\n        resources:\n          requests:\n            cpu: \"100m\"\n            memory: \"64Mi\"\n---\napiVersion: batch/v1\nkind: CronJob\nmetadata:\n  name: db-backup\n  namespace: default\nspec:\n  schedule: \"0 * * * *\"\n  jobTemplate:\n    spec:\n      template:\n        spec:\n          restartPolicy: Never\n          containers:\n          - name: backup\n            image: alpine:3.18\n            command: [\"/bin/sh\", \"-c\", \"echo Backing up database...; sleep 10; echo Backup done\"]\n            resources:\n              requests:\n                cpu: \"100m\"\n                memory: \"64Mi\"\n"
+}

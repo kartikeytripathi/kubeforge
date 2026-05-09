@@ -1,0 +1,40 @@
+{
+  "id": "b7",
+  "title": "Route traffic with an Ingress",
+  "difficulty": "beginner",
+  "estimatedMinutes": 20,
+  "realWorldIncident": false,
+  "scenario": "You have two Services already running: `frontend-svc` on port 80 and `api-svc` on port 8080. Currently the starter Ingress routes all traffic to `frontend-svc`. Add a second rule so that requests to path `/api` are forwarded to `api-svc` instead.",
+  "hiddenSetup": [
+    {
+      "kind": "Service",
+      "metadata": { "name": "frontend-svc", "namespace": "default" },
+      "spec": {
+        "type": "ClusterIP",
+        "selector": { "app": "frontend" },
+        "ports": [{ "port": 80, "targetPort": 80 }]
+      }
+    },
+    {
+      "kind": "Service",
+      "metadata": { "name": "api-svc", "namespace": "default" },
+      "spec": {
+        "type": "ClusterIP",
+        "selector": { "app": "api" },
+        "ports": [{ "port": 8080, "targetPort": 8080 }]
+      }
+    }
+  ],
+  "starterYaml": "apiVersion: networking.k8s.io/v1\nkind: Ingress\nmetadata:\n  name: app-ingress\n  namespace: default\n  annotations:\n    nginx.ingress.kubernetes.io/rewrite-target: /\nspec:\n  ingressClassName: nginx\n  rules:\n  - http:\n      paths:\n      - path: /\n        pathType: Prefix\n        backend:\n          service:\n            name: frontend-svc\n            port:\n              number: 80\n",
+  "objectives": [
+    { "id": "ingress-exists",     "description": "Ingress `app-ingress` exists in the `default` namespace" },
+    { "id": "root-path",          "description": "Ingress has a rule for path `/` pointing to `frontend-svc` on port 80" },
+    { "id": "api-path",           "description": "Ingress has a rule for path `/api` pointing to `api-svc` on port 8080" }
+  ],
+  "hints": [
+    { "revealAfterMs": 60000,  "text": "You need to add a second entry under `spec.rules[0].http.paths`. Copy the existing path block and change `path`, `service.name`, and `service.port.number`." },
+    { "revealAfterMs": 120000, "text": "The new path entry should have `path: /api`, `pathType: Prefix`, and route to `api-svc` on port `8080`." },
+    { "revealAfterMs": 180000, "text": "Paths are matched in order. Make sure `/api` appears before `/` if your ingress controller does exact-first matching — or use `pathType: Exact` for the API route." }
+  ],
+  "solution": "apiVersion: networking.k8s.io/v1\nkind: Ingress\nmetadata:\n  name: app-ingress\n  namespace: default\n  annotations:\n    nginx.ingress.kubernetes.io/rewrite-target: /\nspec:\n  ingressClassName: nginx\n  rules:\n  - http:\n      paths:\n      - path: /api\n        pathType: Prefix\n        backend:\n          service:\n            name: api-svc\n            port:\n              number: 8080\n      - path: /\n        pathType: Prefix\n        backend:\n          service:\n            name: frontend-svc\n            port:\n              number: 80\n"
+}

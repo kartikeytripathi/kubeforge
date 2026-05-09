@@ -1,0 +1,104 @@
+---
+title: "Jobs & CronJobs"
+phase: "B"
+lessonId: "b6"
+---
+
+## Pods that are meant to finish
+
+Deployments and DaemonSets run workloads indefinitely. **Jobs** and **CronJobs** are for workloads that have a defined end: database migrations, report generation, data exports, batch processing.
+
+## Jobs
+
+A Job creates one or more pods, runs them to completion, and records the result.
+
+```yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: db-migrate
+spec:
+  completions: 1        # total successful completions required
+  parallelism: 1        # how many pods run at once
+  backoffLimit: 3       # retry up to 3 times on failure
+  template:
+    spec:
+      restartPolicy: Never   # required: Never or OnFailure
+      containers:
+      - name: migrate
+        image: alpine:3.18
+        command: ["/bin/sh", "-c", "echo migrating; exit 0"]
+```
+
+Key fields:
+
+| Field | Default | Meaning |
+|---|---|---|
+| `completions` | 1 | How many pods must succeed |
+| `parallelism` | 1 | Max concurrent pods |
+| `backoffLimit` | 6 | Max retries before Job fails |
+| `activeDeadlineSeconds` | none | Wall-clock time limit for the entire Job |
+
+`completions: 0` is a common mistake — it means "zero pods need to succeed" so nothing runs.
+
+## Job pod phases
+
+After a Job completes, pods move to `Succeeded` phase and are kept for log inspection (default: 1 hour via `ttlSecondsAfterFinished`). Kubernetes does not delete them automatically unless you set that field.
+
+## CronJobs
+
+A **CronJob** creates a new Job on a schedule defined by a standard Unix cron expression:
+
+```yaml
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: db-backup
+spec:
+  schedule: "0 * * * *"    # every hour, at minute 0
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+          - name: backup
+            image: alpine:3.18
+            command: ["/bin/sh", "-c", "echo backing up"]
+```
+
+## Cron expression format
+
+```
+┌─── minute (0-59)
+│ ┌─── hour (0-23)
+│ │ ┌─── day of month (1-31)
+│ │ │ ┌─── month (1-12)
+│ │ │ │ ┌─── day of week (0-6, 0=Sunday)
+│ │ │ │ │
+* * * * *
+```
+
+A valid expression always has exactly **5 fields**. `* * * *` (4 fields) is invalid and will be rejected by the API server.
+
+| Schedule | Expression |
+|---|---|
+| Every hour | `0 * * * *` |
+| Every day at midnight | `0 0 * * *` |
+| Every Monday at 9am | `0 9 * * 1` |
+| Every 15 minutes | `*/15 * * * *` |
+
+## CronJob concurrency policy
+
+| Policy | Behaviour |
+|---|---|
+| `Allow` (default) | Multiple Jobs can run concurrently |
+| `Forbid` | Skip the new Job if a previous one is still running |
+| `Replace` | Cancel the running Job and start a new one |
+
+Use `Forbid` for database backups — you never want two backups running simultaneously.
+
+## Further reading
+
+- [Jobs](https://kubernetes.io/docs/concepts/workloads/controllers/job/)
+- [CronJob](https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/)

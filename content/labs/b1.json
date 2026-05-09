@@ -1,0 +1,23 @@
+{
+  "id": "b1",
+  "title": "Fix the broken liveness probe",
+  "difficulty": "beginner",
+  "estimatedMinutes": 20,
+  "realWorldIncident": false,
+  "scenario": "The `web` Deployment was deployed by a junior engineer who made a one-character typo in the liveness probe path: `/heathz` instead of `/healthz`. Kubernetes keeps restarting the container because the probe fails. Fix the probe path so the pod stays Running and becomes ready.",
+  "hiddenSetup": [],
+  "starterYaml": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: web\n  namespace: default\nspec:\n  replicas: 1\n  selector:\n    matchLabels:\n      app: web\n  template:\n    metadata:\n      labels:\n        app: web\n    spec:\n      containers:\n      - name: web\n        image: nginx:1.25\n        ports:\n        - containerPort: 80\n        livenessProbe:\n          httpGet:\n            path: /heathz\n            port: 80\n          initialDelaySeconds: 5\n          periodSeconds: 10\n        readinessProbe:\n          httpGet:\n            path: /healthz\n            port: 80\n          initialDelaySeconds: 5\n          periodSeconds: 10\n",
+  "objectives": [
+    { "id": "deploy-exists",    "description": "Deployment `web` exists in the `default` namespace" },
+    { "id": "probe-exists",     "description": "Container has a `livenessProbe` defined" },
+    { "id": "probe-path",       "description": "livenessProbe httpGet path is `/healthz`" },
+    { "id": "pod-running",      "description": "Pod phase is `Running`" },
+    { "id": "pod-ready",        "description": "Pod is Ready (readiness probe passing)" }
+  ],
+  "hints": [
+    { "revealAfterMs": 60000,  "text": "Look closely at the liveness probe `path` field — compare it character-by-character with the readiness probe path." },
+    { "revealAfterMs": 120000, "text": "The typo is in `livenessProbe.httpGet.path`. Change `/heathz` to `/healthz` (the 'l' comes before the 't')." },
+    { "revealAfterMs": 180000, "text": "Once corrected, apply the YAML. Kubernetes will roll out a new pod with the fixed probe and it should become Running and Ready within 30 seconds." }
+  ],
+  "solution": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: web\n  namespace: default\nspec:\n  replicas: 1\n  selector:\n    matchLabels:\n      app: web\n  template:\n    metadata:\n      labels:\n        app: web\n    spec:\n      containers:\n      - name: web\n        image: nginx:1.25\n        ports:\n        - containerPort: 80\n        livenessProbe:\n          httpGet:\n            path: /healthz\n            port: 80\n          initialDelaySeconds: 5\n          periodSeconds: 10\n        readinessProbe:\n          httpGet:\n            path: /healthz\n            port: 80\n          initialDelaySeconds: 5\n          periodSeconds: 10\n"
+}

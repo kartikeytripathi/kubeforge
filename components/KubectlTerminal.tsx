@@ -24,6 +24,9 @@ export function KubectlTerminal({ simulator }: Props) {
     if (!containerRef.current) return;
 
     let disposed = false;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let term: any = null;
+    let observer: ResizeObserver | null = null;
 
     const writePrompt = () => termRef.current?.write("\r\n\x1b[32m$\x1b[0m ");
 
@@ -64,7 +67,7 @@ export function KubectlTerminal({ simulator }: Props) {
       if (disposed || !containerRef.current) return;
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const term = new (Terminal as any)({
+      term = new (Terminal as any)({
         theme: {
           background: "#0f1117",
           foreground: "#d1d5db",
@@ -128,16 +131,16 @@ export function KubectlTerminal({ simulator }: Props) {
         }
       });
 
-      const observer = new ResizeObserver(() => fitAddon.fit?.());
+      observer = new ResizeObserver(() => fitAddon.fit?.());
       if (containerRef.current) observer.observe(containerRef.current);
-
-      return () => {
-        observer.disconnect();
-        term.dispose();
-      };
     })();
 
-    return () => { disposed = true; };
+    return () => {
+      disposed = true;
+      observer?.disconnect();
+      term?.dispose();
+      termRef.current = null;
+    };
   }, []); // mount once only
 
   return (

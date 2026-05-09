@@ -1,0 +1,103 @@
+---
+title: "DaemonSets"
+phase: "B"
+lessonId: "b5"
+---
+
+## What is a DaemonSet?
+
+A **DaemonSet** ensures that exactly one copy of a pod runs on every node (or a subset of nodes). When a new node joins the cluster, the DaemonSet controller automatically schedules the pod on it. When a node is removed, the pod is garbage collected.
+
+DaemonSets are the standard way to deploy node-level infrastructure: log collectors, metrics agents, network plugins, and security scanners.
+
+## A minimal DaemonSet
+
+```yaml
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: log-collector
+spec:
+  selector:
+    matchLabels:
+      app: log-collector
+  template:
+    metadata:
+      labels:
+        app: log-collector
+    spec:
+      containers:
+      - name: log-agent
+        image: fluent/fluentbit:2.2
+        resources:
+          requests:
+            cpu: "50m"
+            memory: "32Mi"
+```
+
+No `replicas` field — the count is determined by the number of nodes.
+
+## Verifying a DaemonSet
+
+```bash
+kubectl get daemonset log-collector
+```
+
+Output columns to watch:
+
+| Column | Meaning |
+|---|---|
+| `DESIRED` | Number of nodes that should run the pod |
+| `CURRENT` | Pods that exist (may still be starting) |
+| `READY` | Pods that have passed their readiness probe |
+| `AVAILABLE` | Pods available to serve (ready for long enough) |
+| `NODE SELECTOR` | Node label filter (empty = all nodes) |
+
+A healthy DaemonSet shows `DESIRED == READY`.
+
+## Targeting a subset of nodes
+
+You can restrict a DaemonSet to nodes with a specific label using `nodeSelector` or `nodeAffinity`:
+
+```yaml
+spec:
+  template:
+    spec:
+      nodeSelector:
+        node-role.kubernetes.io/worker: "true"
+```
+
+Only nodes carrying the label will run the DaemonSet pod.
+
+## Tolerating tainted nodes
+
+By default a DaemonSet pod cannot schedule on a tainted node. System DaemonSets (like `kube-proxy`) tolerate every taint with a wildcard:
+
+```yaml
+tolerations:
+- operator: Exists    # tolerate any taint
+```
+
+For a DaemonSet that must reach every node in the cluster — such as a security scanner — this is the correct approach.
+
+## Update strategy
+
+DaemonSets support two update strategies:
+
+| Strategy | Behaviour |
+|---|---|
+| `RollingUpdate` (default) | Replaces pods one node at a time, respecting `maxUnavailable` |
+| `OnDelete` | New pod spec applies only when a pod is manually deleted |
+
+## DaemonSet vs Deployment
+
+| Feature | Deployment | DaemonSet |
+|---|---|---|
+| Scheduling target | Fits on available nodes | One pod per node |
+| Replicas field | Yes | No (node-driven) |
+| Use case | Application workloads | Node agents, network plugins |
+
+## Further reading
+
+- [DaemonSet](https://kubernetes.io/docs/concepts/workloads/controllers/daemonset/)
+- [Perform a Rolling Update on a DaemonSet](https://kubernetes.io/docs/tasks/manage-daemon/update-daemon-set/)
