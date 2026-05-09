@@ -1,0 +1,67 @@
+---
+title: "ReplicaSets and Deployments"
+phase: "A"
+lessonId: "a2"
+---
+
+## Deployment vs. ReplicaSet
+
+A **ReplicaSet** ensures N identical Pods are running. You almost never create ReplicaSets directly. A **Deployment** manages ReplicaSets for you — every time you change the Pod template (e.g., update an image), the Deployment creates a *new* ReplicaSet and migrates traffic across using its rollout strategy.
+
+```
+Deployment
+  └─ ReplicaSet (template hash: abc12)  ← new
+       ├─ Pod (Running)
+       ├─ Pod (Running)
+       └─ Pod (Running)
+  └─ ReplicaSet (template hash: xyz99)  ← old, scaling to 0
+```
+
+## Rollout strategies
+
+```yaml
+spec:
+  strategy:
+    type: RollingUpdate      # default
+    rollingUpdate:
+      maxSurge: 1            # at most 1 extra pod during rollout
+      maxUnavailable: 1      # at most 1 pod unavailable
+```
+
+- **RollingUpdate** (default): Gradually replaces old pods. Traffic is never fully dropped.
+- **Recreate**: Kills all old pods first, then starts new ones. Causes downtime — only use for stateful apps that can't run two versions simultaneously.
+
+## Key fields
+
+```yaml
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: frontend    # must match template.metadata.labels
+  template:
+    metadata:
+      labels:
+        app: frontend
+    spec:
+      containers:
+      - name: web
+        image: nginx:1.25   # change this to trigger a rollout
+```
+
+`selector.matchLabels` is immutable after creation. It must exactly match `template.metadata.labels`.
+
+## Diagnosing a stuck rollout
+
+```bash
+kubectl rollout status deployment/frontend
+kubectl rollout history deployment/frontend
+kubectl describe deployment frontend
+```
+
+If pods are stuck in `Pending`, check resource requests. If stuck in `CrashLoopBackOff`, check the new image.
+
+## Further reading
+
+- [Deployments](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/)
+- [Rolling updates](https://kubernetes.io/docs/tutorials/kubernetes-basics/update/update-intro/)
