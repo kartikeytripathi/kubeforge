@@ -1,28 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma, DEFAULT_USER_ID, ensureUser } from "@/lib/db";
+import { auth } from "@/auth";
+import { connectDB } from "@/lib/mongoose";
+import { LabAttempt } from "@/lib/models/LabAttempt";
 
 export async function POST(req: NextRequest) {
-  try {
-    const body = await req.json();
-    const { labId, yaml, passed } = body as { labId: string; yaml: string; passed: boolean };
+  const session = await auth();
+  if (!session?.user?.id) return NextResponse.json({ ok: false }, { status: 401 });
 
+  try {
+    const { labId, yaml, passed } = (await req.json()) as {
+      labId: string;
+      yaml: string;
+      passed: boolean;
+    };
     if (!labId) return NextResponse.json({ error: "labId required" }, { status: 400 });
 
-    await ensureUser();
-
-    await prisma.labAttempt.create({
-      data: { userId: DEFAULT_USER_ID, labId, yaml: yaml ?? "", passed: passed ?? false },
+    await connectDB();
+    await LabAttempt.create({
+      userId: session.user.id,
+      labId,
+      yaml: yaml ?? "",
+      passed: passed ?? false,
     });
-
-    if (passed) {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      await prisma.streak.upsert({
-        where: { userId_date: { userId: DEFAULT_USER_ID, date: today } },
-        update: { count: { increment: 1 } },
-        create: { userId: DEFAULT_USER_ID, date: today, count: 1 },
-      });
-    }
 
     return NextResponse.json({ ok: true });
   } catch {
