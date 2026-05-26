@@ -256,15 +256,30 @@ function GitHubIcon({ className }: { className?: string }) {
 }
 
 function SignInButton({ size = "lg" }: { size?: "sm" | "lg" }) {
+  const [loading, setLoading] = useState(false);
+
+  function handleClick() {
+    setLoading(true);
+    signIn("github");
+  }
+
   return (
     <button
-      onClick={() => signIn("github")}
-      className={`animate-pulse-glow inline-flex items-center gap-3 rounded-xl bg-teal-600 font-semibold text-white transition-all hover:bg-teal-700 hover:scale-[1.02] active:scale-[0.98] ${
+      onClick={handleClick}
+      disabled={loading}
+      className={`animate-pulse-glow inline-flex items-center gap-3 rounded-xl bg-teal-600 font-semibold text-white transition-all hover:bg-teal-700 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-80 disabled:cursor-not-allowed disabled:scale-100 ${
         size === "lg" ? "px-6 sm:px-8 py-3.5 sm:py-4 text-sm sm:text-base" : "px-3 sm:px-5 py-2 sm:py-2.5 text-xs sm:text-sm"
       }`}
     >
-      <GitHubIcon className={size === "lg" ? "h-5 w-5" : "h-4 w-4"} />
-      Sign in with GitHub
+      {loading ? (
+        <svg className={`animate-spin ${size === "lg" ? "h-5 w-5" : "h-4 w-4"}`} fill="none" viewBox="0 0 24 24">
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+        </svg>
+      ) : (
+        <GitHubIcon className={size === "lg" ? "h-5 w-5" : "h-4 w-4"} />
+      )}
+      {loading ? "Redirecting…" : "Sign in with GitHub"}
     </button>
   );
 }
