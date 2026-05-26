@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { EksToggle } from "./EksToggle";
 import { KubeForgeIcon } from "./KubeForgeIcon";
+import { AuthButton } from "./AuthButton";
 
 export function TopNav() {
   return (
@@ -15,6 +16,7 @@ export function TopNav() {
       <div className="flex items-center gap-4">
         <EksToggle />
         <ThemeToggle />
+        <AuthButton />
       </div>
     </header>
   );
