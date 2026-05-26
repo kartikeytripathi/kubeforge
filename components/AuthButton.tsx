@@ -27,7 +27,7 @@ export function AuthButton() {
           </div>
         )}
         <button
-          onClick={() => signOut()}
+          onClick={() => signOut({ callbackUrl: "/" })}
           className="text-xs text-gray-400 hover:text-white transition-colors"
         >
           Sign out
