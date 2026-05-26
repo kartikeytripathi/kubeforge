@@ -193,6 +193,58 @@ const PHASES = [
   { id: "D", label: "AWS EKS",     labs: 13, color: "border-amber-500 text-amber-400",   desc: "IRSA · Karpenter · ALB · Fargate · ECR" },
 ];
 
+// ── FAQ ───────────────────────────────────────────────────────────────────────
+
+const FAQS = [
+  {
+    q: "Do I need a Kubernetes cluster or AWS account?",
+    a: "No. KubeForge runs an in-browser Kubernetes simulator — no cloud account, no local install, no kind or minikube setup required. You can start Lab A1 in under 30 seconds.",
+  },
+  {
+    q: "Is this good preparation for the CKA exam?",
+    a: "Yes. Phases A and B cover the core CKA curriculum — Pods, Deployments, Services, RBAC, probes, HPA, StatefulSets, Ingress. The lab format (fix a real scenario, verify against objectives) mirrors the CKA exam format closely.",
+  },
+  {
+    q: "What is Phase D — EKS Deep Track?",
+    a: "Phase D is 13 labs focused on AWS EKS in production: IRSA, Pod Identity, Karpenter, the AWS Load Balancer Controller, ECR lifecycle policies, Fargate, Spot optimization, and a full capstone incident. It's designed for engineers who already know Kubernetes and want to go deep on EKS.",
+  },
+  {
+    q: "How does lab verification work?",
+    a: "Each lab has a set of objectives. When you click Verify, a checker inspects your cluster state — it reads object metadata, checks labels, counts replicas, verifies service selectors, etc. Pass/fail is returned in milliseconds. No multiple choice, no self-grading.",
+  },
+  {
+    q: "Is KubeForge free?",
+    a: "Yes, completely free. No credit card, no premium tier, no limits on labs or progress. Sign in with GitHub and start immediately.",
+  },
+];
+
+function FaqAccordion() {
+  const [open, setOpen] = useState<number | null>(null);
+  return (
+    <div className="divide-y divide-surface-600">
+      {FAQS.map((faq, i) => (
+        <div key={i}>
+          <button
+            onClick={() => setOpen(open === i ? null : i)}
+            className="flex w-full items-center justify-between py-5 text-left text-sm font-semibold text-white transition-colors hover:text-teal-400"
+          >
+            <span>{faq.q}</span>
+            <svg
+              className={`ml-4 h-5 w-5 shrink-0 text-teal-400 transition-transform duration-200 ${open === i ? "rotate-180" : ""}`}
+              fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          <div className={`overflow-hidden transition-all duration-300 ${open === i ? "max-h-48 pb-5" : "max-h-0"}`}>
+            <p className="text-sm leading-relaxed text-gray-400">{faq.a}</p>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ── GitHub button ─────────────────────────────────────────────────────────────
 
 function GitHubIcon({ className }: { className?: string }) {
@@ -440,6 +492,17 @@ export function LandingPage() {
             &ldquo;what is a Pod?&rdquo; to &ldquo;why is Karpenter not consolidating my spot nodes?&rdquo;
             No lab is theoretical. No lab is a multiple-choice question.
           </p>
+        </div>
+      </section>
+
+      {/* ── FAQ ── */}
+      <section className="px-6 py-20 bg-surface-800/40 border-y border-surface-600">
+        <div className="mx-auto max-w-2xl">
+          <Reveal>
+            <h2 className="mb-3 text-center text-3xl font-bold">Frequently asked</h2>
+            <p className="mb-12 text-center text-gray-400">Quick answers to the questions we see most often.</p>
+          </Reveal>
+          <FaqAccordion />
         </div>
       </section>
 
