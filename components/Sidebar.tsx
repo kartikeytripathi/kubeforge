@@ -61,8 +61,29 @@ export function Sidebar() {
         })}
       </nav>
 
-      <div className="border-t border-surface-600 px-4 py-3">
-        <p className="text-xs text-gray-500">Phase A — Foundations</p>
+      <div className="border-t border-surface-600 px-3 py-3 space-y-1">
+        <a
+          href="https://github.com/kartikeytripathi/kubeforge/issues/new?template=bug_report.md&labels=bug&title=[Bug]+&body=%23%23+Describe+the+bug%0A%0A%23%23+Steps+to+reproduce%0A%0A%23%23+Expected+behavior%0A%0A%23%23+Lab+%28if+applicable%29%0A"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-gray-400 hover:bg-surface-700 hover:text-white transition-colors"
+        >
+          <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+          </svg>
+          Report an issue
+        </a>
+        <a
+          href="https://github.com/kartikeytripathi/kubeforge"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-gray-400 hover:bg-surface-700 hover:text-white transition-colors"
+        >
+          <svg className="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" />
+          </svg>
+          View on GitHub
+        </a>
       </div>
     </aside>
   );
