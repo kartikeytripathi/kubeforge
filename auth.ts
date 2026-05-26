@@ -13,10 +13,11 @@ async function notifyNewUser(name: string, email: string, githubId: string) {
   await resend.emails.send({
     from:    "KubeForge <noreply@kubeforge.kartikeytripathi.in>",
     to:      "kartikey.tripathi.37@gmail.com",
-    subject: `New signup: ${name || "Unknown"}`,
+    subject: `New signup: ${name}`,
     html: `
       <p><strong>Name:</strong> ${name || "—"}</p>
       <p><strong>Email:</strong> ${email || "—"}</p>
+      <p><strong>GitHub:</strong> <a href="https://github.com/${name}">github.com/${name}</a></p>
       <p><strong>GitHub ID:</strong> ${githubId}</p>
     `,
   });
@@ -42,9 +43,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           );
           // result is null when the document was just created (upsert insert)
           if (!result) {
+            const gh = profile as Record<string, unknown>;
             notifyNewUser(
-              profile.name ?? "",
-              profile.email ?? "",
+              (profile.name || gh.login || "") as string,
+              (profile.email || "") as string,
               account.providerAccountId,
             ).catch(() => {});
           }
