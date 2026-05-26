@@ -1,11 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import {
   useProgressStore,
   getCompletedLabIds,
-  getStreak,
-  getActivityDays,
   getCkaReadiness,
   getEksReadiness,
 } from "@/lib/progress-store";
@@ -17,17 +16,39 @@ const LAB_ORDER = [
   "d1","d2","d3","d4","d5","d6","d7","d8","d9","d10","d11","d12","d13",
 ];
 
+interface ProgressData {
+  completedLabs: string[];
+  activityDays: string[];
+  currentStreak: number;
+  ckaReadiness: number;
+  eksReadiness: number;
+  totalAttempts: number;
+}
+
 export function Dashboard() {
   const completions = useProgressStore((s) => s.completions);
-  const attempts = useProgressStore((s) => s.attempts);
 
-  const completedLabIds = getCompletedLabIds(completions);
+  // Seed from local store while the API call is in-flight
+  const localCompletedIds = getCompletedLabIds(completions);
+  const [remote, setRemote] = useState<ProgressData | null>(null);
+
+  useEffect(() => {
+    fetch("/api/progress")
+      .then((r) => r.json())
+      .then((data: ProgressData) => setRemote(data))
+      .catch(() => {});
+  }, []);
+
+  // Prefer remote (MongoDB) data; fall back to local Zustand store
+  const completedLabIds = remote ? remote.completedLabs  : localCompletedIds;
+  const activityDays   = remote ? remote.activityDays    : [];
+  const streak         = remote ? remote.currentStreak   : 0;
+  const ckaReadiness   = remote ? remote.ckaReadiness    : getCkaReadiness(completions);
+  const eksReadiness   = remote ? remote.eksReadiness    : getEksReadiness(completions);
+  const totalAttempts  = remote ? remote.totalAttempts   : 0;
+
   const completedSet = new Set(completedLabIds);
   const nextLab = LAB_ORDER.find((id) => !completedSet.has(id)) ?? "a1";
-  const streak = getStreak(attempts);
-  const activityDays = getActivityDays(attempts);
-  const ckaReadiness = getCkaReadiness(completions);
-  const eksReadiness = getEksReadiness(completions);
 
   const activitySet = new Set(activityDays);
   const today = new Date();
@@ -92,8 +113,8 @@ export function Dashboard() {
           ))}
         </div>
         <p className="mt-3 text-xs text-gray-500">
-          {attempts.length > 0
-            ? `${attempts.length} attempt${attempts.length !== 1 ? "s" : ""} across ${completedLabIds.length} completed lab${completedLabIds.length !== 1 ? "s" : ""}.`
+          {totalAttempts > 0
+            ? `${totalAttempts} attempt${totalAttempts !== 1 ? "s" : ""} across ${completedLabIds.length} completed lab${completedLabIds.length !== 1 ? "s" : ""}.`
             : "Start a lab to begin tracking your progress."}
         </p>
       </section>
