@@ -57,14 +57,14 @@ function TerminalWindow() {
   }, []);
 
   return (
-    <div className="animate-float relative w-full max-w-lg rounded-xl border border-surface-600 bg-surface-800 shadow-2xl shadow-black/60 overflow-hidden">
+    <div className="animate-float relative mx-auto w-full max-w-lg rounded-xl border border-surface-600 bg-surface-800 shadow-2xl shadow-black/60 overflow-hidden">
       <div className="flex items-center gap-2 border-b border-surface-600 bg-surface-900 px-4 py-3">
         <span className="h-3 w-3 rounded-full bg-red-500/70" />
         <span className="h-3 w-3 rounded-full bg-amber-500/70" />
         <span className="h-3 w-3 rounded-full bg-emerald-500/70" />
         <span className="ml-3 text-xs text-gray-500 font-mono">kubeforge — lab a2</span>
       </div>
-      <div className="min-h-[200px] p-4 font-mono text-sm leading-relaxed">
+      <div className="min-h-[200px] overflow-x-auto p-4 font-mono text-xs sm:text-sm leading-relaxed">
         {LINES.slice(0, shown).map((line, i) => {
           const isLast = i === shown - 1;
           return (
@@ -260,7 +260,7 @@ function SignInButton({ size = "lg" }: { size?: "sm" | "lg" }) {
     <button
       onClick={() => signIn("github")}
       className={`animate-pulse-glow inline-flex items-center gap-3 rounded-xl bg-teal-600 font-semibold text-white transition-all hover:bg-teal-700 hover:scale-[1.02] active:scale-[0.98] ${
-        size === "lg" ? "px-8 py-4 text-base" : "px-5 py-2.5 text-sm"
+        size === "lg" ? "px-6 sm:px-8 py-3.5 sm:py-4 text-sm sm:text-base" : "px-3 sm:px-5 py-2 sm:py-2.5 text-xs sm:text-sm"
       }`}
     >
       <GitHubIcon className={size === "lg" ? "h-5 w-5" : "h-4 w-4"} />
@@ -291,7 +291,7 @@ export function LandingPage() {
     <div className="min-h-screen bg-surface-900 text-white overflow-x-hidden">
 
       {/* ── Minimal nav ── */}
-      <nav className="fixed top-0 inset-x-0 z-50 flex items-center justify-between px-6 py-4 backdrop-blur-md border-b border-white/5 bg-surface-900/70">
+      <nav className="fixed top-0 inset-x-0 z-50 flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 backdrop-blur-md border-b border-white/5 bg-surface-900/70">
         <div className="flex items-center gap-2">
           <KubeForgeIcon className="h-7 w-7 text-teal-600" />
           <span className="text-lg font-bold tracking-tight">KubeForge</span>
@@ -300,7 +300,7 @@ export function LandingPage() {
       </nav>
 
       {/* ── Hero ── */}
-      <section className="relative flex min-h-screen flex-col items-center justify-center px-6 pt-20 pb-16 overflow-hidden">
+      <section className="relative flex min-h-screen flex-col items-center justify-center px-4 sm:px-6 pt-20 pb-12 sm:pb-16 overflow-hidden">
         {/* Grid background */}
         <div
           className="animate-grid-pan pointer-events-none absolute inset-0"
@@ -340,9 +340,9 @@ export function LandingPage() {
       </section>
 
       {/* ── Stats bar ── */}
-      <section className="border-y border-surface-600 bg-surface-800/60 px-6 py-8">
+      <section className="border-y border-surface-600 bg-surface-800/60 px-4 sm:px-6 py-6 sm:py-8">
         <Reveal>
-          <div className="mx-auto flex max-w-4xl flex-wrap items-center justify-center gap-6 sm:gap-12">
+          <div className="mx-auto grid grid-cols-2 sm:flex max-w-4xl flex-wrap items-center justify-center gap-6 sm:gap-12">
             {[
               { value: "38",   label: "Hands-on Labs"   },
               { value: "4",    label: "Learning Phases" },
@@ -359,7 +359,7 @@ export function LandingPage() {
       </section>
 
       {/* ── Feature cards ── */}
-      <section className="px-6 py-24">
+      <section className="px-4 sm:px-6 py-16 sm:py-24">
         <div className="mx-auto max-w-5xl">
           <Reveal>
             <h2 className="mb-3 text-center text-3xl font-bold">Not another video course</h2>
@@ -382,7 +382,7 @@ export function LandingPage() {
       </section>
 
       {/* ── How it works ── */}
-      <section className="px-6 py-20 bg-surface-800/40 border-y border-surface-600">
+      <section className="px-4 sm:px-6 py-14 sm:py-20 bg-surface-800/40 border-y border-surface-600">
         <div className="mx-auto max-w-5xl">
           <h2 className="mb-3 text-center text-3xl font-bold">How it works</h2>
           <p className="mb-14 text-center text-gray-400">
@@ -410,7 +410,7 @@ export function LandingPage() {
       </section>
 
       {/* ── Comparison table ── */}
-      <section className="px-6 py-20">
+      <section className="px-4 sm:px-6 py-14 sm:py-20">
         <div className="mx-auto max-w-3xl">
           <h2 className="mb-3 text-center text-3xl font-bold">
             Why KubeForge?
@@ -447,7 +447,7 @@ export function LandingPage() {
       </section>
 
       {/* ── Phase roadmap ── */}
-      <section className="px-6 py-16 bg-surface-800/40 border-y border-surface-600">
+      <section className="px-4 sm:px-6 py-12 sm:py-16 bg-surface-800/40 border-y border-surface-600">
         <div className="mx-auto max-w-5xl">
           <Reveal>
             <h2 className="mb-3 text-center text-3xl font-bold">Four phases. One complete journey.</h2>
@@ -476,7 +476,7 @@ export function LandingPage() {
       </section>
 
       {/* ── Built by ── */}
-      <section className="px-6 py-20">
+      <section className="px-4 sm:px-6 py-14 sm:py-20">
         <div className="mx-auto max-w-2xl text-center">
           <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-surface-600 bg-surface-800 px-4 py-1.5 text-xs font-semibold text-gray-400">
             BUILT BY A PRACTITIONER
@@ -496,7 +496,7 @@ export function LandingPage() {
       </section>
 
       {/* ── FAQ ── */}
-      <section className="px-6 py-20 bg-surface-800/40 border-y border-surface-600">
+      <section className="px-4 sm:px-6 py-14 sm:py-20 bg-surface-800/40 border-y border-surface-600">
         <div className="mx-auto max-w-2xl">
           <Reveal>
             <h2 className="mb-3 text-center text-3xl font-bold">Frequently asked</h2>
@@ -507,7 +507,7 @@ export function LandingPage() {
       </section>
 
       {/* ── Final CTA ── */}
-      <section className="relative overflow-hidden px-6 py-28 text-center">
+      <section className="relative overflow-hidden px-4 sm:px-6 py-20 sm:py-28 text-center">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_60%_60%_at_50%_50%,rgba(13,148,136,0.12),transparent)]" />
         <Reveal>
           <div className="relative z-10 mx-auto max-w-xl">
@@ -522,7 +522,7 @@ export function LandingPage() {
       </section>
 
       {/* ── Footer ── */}
-      <footer className="border-t border-surface-600 px-6 py-8 text-center text-xs text-gray-600">
+      <footer className="border-t border-surface-600 px-4 sm:px-6 py-6 sm:py-8 text-center text-xs text-gray-600">
         <div className="flex items-center justify-center gap-2 mb-2">
           <KubeForgeIcon className="h-4 w-4 text-teal-600/60" />
           <span>KubeForge</span>
