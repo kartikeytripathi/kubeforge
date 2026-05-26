@@ -15,7 +15,10 @@ A webapp for learning Kubernetes and Amazon EKS through hands-on labs. Every con
 - **Automated lab verification** — pass/fail in milliseconds, not multiple choice
 - **GitHub OAuth** — sign in with GitHub, progress synced across devices
 - **MongoDB-backed progress** — lab attempts and completions persisted per user
-- **Animated landing page** — full-screen hero with live terminal animation
+- **Animated landing page** — scroll animations, floating K8s nodes, FAQ accordion
+- **Open Graph / SEO** — sitemap.xml, robots.txt, Twitter card metadata
+- **New user notifications** — email alert via Resend on every new signup
+- **Report an issue** — pre-filled GitHub issue link in the sidebar
 
 ---
 
@@ -100,6 +103,7 @@ A webapp for learning Kubernetes and Amazon EKS through hands-on labs. Every con
 | Styling | Tailwind CSS v4 + custom dark theme |
 | Auth | NextAuth v5 (GitHub OAuth, JWT sessions) |
 | Database | MongoDB Atlas (Mongoose) |
+| Email | Resend (new user signup notifications) |
 | Code editor | Monaco Editor (`@monaco-editor/react`) |
 | Cluster diagrams | React Flow (`reactflow`) |
 | YAML parsing | `js-yaml` |
@@ -124,16 +128,21 @@ kubeforge/
 │   ├── lesson/[id]/              # Lab pages (server-rendered, force-dynamic)
 │   ├── curriculum/               # Phase/lesson browser
 │   ├── progress/                 # Heatmap + readiness gauges
-│   └── settings/                 # Keyboard shortcuts, cluster options
+│   ├── settings/                 # Keyboard shortcuts, storage info
+│   ├── sitemap.ts                # Auto-generated sitemap.xml (43 URLs)
+│   └── robots.ts                 # Auto-generated robots.txt
 ├── components/
 │   ├── LandingPage.tsx           # Animated landing page (unauthenticated)
 │   ├── Dashboard.tsx             # Progress dashboard (authenticated)
 │   ├── AuthButton.tsx            # GitHub sign in/out + avatar
+│   ├── Sidebar.tsx               # Nav sidebar with report/GitHub links
 │   ├── LabPane.tsx               # Three-panel lab layout
 │   ├── YamlEditor.tsx            # Monaco editor (YAML mode)
 │   ├── ClusterCanvas.tsx         # React Flow cluster visualisation
 │   ├── VerifyPanel.tsx           # Objectives checklist + hints
 │   └── AppShell.tsx              # Top nav + sidebar wrapper
+├── hooks/
+│   └── useInView.ts              # Intersection Observer scroll-reveal hook
 ├── lib/
 │   ├── simulator/                # In-memory K8s cluster state machine
 │   │   ├── index.ts              # ClusterSimulator class + apply/tick/query API
@@ -146,8 +155,8 @@ kubeforge/
 │   │   └── LabCompletion.ts      # Mongoose completion model
 │   ├── mongoose.ts               # MongoDB connection singleton
 │   ├── verifiers/                # Per-lab assertion functions (one file per lab)
-│   └── progress-store.ts         # Zustand progress store (localStorage)
-├── auth.ts                       # NextAuth full config (Node.js — mongoose signIn hook)
+│   └── progress-store.ts         # Zustand progress store (localStorage cache)
+├── auth.ts                       # NextAuth full config (Node.js — mongoose + Resend)
 ├── auth.config.ts                # NextAuth edge config (used by middleware)
 ├── middleware.ts                  # Route protection — redirects unauthenticated users
 ├── content/
@@ -168,7 +177,7 @@ pnpm install
 
 # 2. Set up environment variables
 cp .env.example .env.local
-# Fill in MONGODB_URI, GITHUB_ID, GITHUB_SECRET, AUTH_SECRET, AUTH_URL
+# Fill in MONGODB_URI, GITHUB_ID, GITHUB_SECRET, AUTH_SECRET, AUTH_URL, RESEND_API_KEY
 
 # 3. Start dev server
 pnpm dev
@@ -184,6 +193,7 @@ pnpm dev
 | `GITHUB_SECRET` | GitHub OAuth App client secret |
 | `AUTH_SECRET` | Random secret — `openssl rand -base64 32` |
 | `AUTH_URL` | App URL (`http://localhost:3000` locally) |
+| `RESEND_API_KEY` | Resend API key for signup email notifications |
 
 ### GitHub OAuth App setup
 
