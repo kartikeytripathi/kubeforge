@@ -115,6 +115,37 @@ const FEATURES = [
   },
 ];
 
+// ── How it works steps ────────────────────────────────────────────────────────
+
+const HOW_STEPS = [
+  {
+    num: "01",
+    title: "Read the incident brief",
+    desc: "Each lab starts with a real-world scenario — a CrashLoopBackOff, a broken ingress, a misconfigured RBAC. You know exactly what's broken and why it matters.",
+  },
+  {
+    num: "02",
+    title: "Fix it with real commands",
+    desc: "Open the in-browser YAML editor or type kubectl directly in the terminal. The cluster reacts in real time — pods start, services resolve, probes pass.",
+  },
+  {
+    num: "03",
+    title: "Verify and move on",
+    desc: "Hit Verify. The lab checker inspects your cluster state against the objectives. Green across the board? Progress is saved. On to the next lab.",
+  },
+];
+
+// ── Comparison table ──────────────────────────────────────────────────────────
+
+const COMPARE_ROWS = [
+  { feature: "Hands-on kubectl practice",      kubeforge: true,  video: false, docs: false },
+  { feature: "No cloud account needed",        kubeforge: true,  video: true,  docs: true  },
+  { feature: "Automated pass/fail grading",    kubeforge: true,  video: false, docs: false },
+  { feature: "Structured CKA → EKS path",     kubeforge: true,  video: true,  docs: false },
+  { feature: "Progress synced across devices", kubeforge: true,  video: false, docs: false },
+  { feature: "Free forever",                   kubeforge: true,  video: false, docs: true  },
+];
+
 // ── Phases ───────────────────────────────────────────────────────────────────
 
 const PHASES = [
@@ -147,6 +178,21 @@ function SignInButton({ size = "lg" }: { size?: "sm" | "lg" }) {
       <GitHubIcon className={size === "lg" ? "h-5 w-5" : "h-4 w-4"} />
       Sign in with GitHub
     </button>
+  );
+}
+
+function CheckIcon({ checked }: { checked: boolean }) {
+  if (checked) {
+    return (
+      <svg className="h-5 w-5 text-teal-400 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+      </svg>
+    );
+  }
+  return (
+    <svg className="h-5 w-5 text-gray-700 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+    </svg>
   );
 }
 
@@ -283,6 +329,71 @@ export function LandingPage() {
         </div>
       </section>
 
+      {/* ── How it works ── */}
+      <section className="px-6 py-20 bg-surface-800/40 border-y border-surface-600">
+        <div className="mx-auto max-w-5xl">
+          <h2 className="mb-3 text-center text-3xl font-bold">How it works</h2>
+          <p className="mb-14 text-center text-gray-400">
+            Three steps. No setup. No cloud account. No waiting for a cluster to spin up.
+          </p>
+
+          <div className="grid gap-8 md:grid-cols-3">
+            {HOW_STEPS.map((step, i) => (
+              <div key={step.num} className="relative flex flex-col items-start gap-4">
+                {/* connector line between steps */}
+                {i < HOW_STEPS.length - 1 && (
+                  <div className="absolute left-[2.75rem] top-7 hidden h-px w-[calc(100%+2rem)] bg-gradient-to-r from-teal-600/40 to-transparent md:block" />
+                )}
+                <div className="relative z-10 flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-teal-600/40 bg-teal-600/10 text-xl font-bold text-teal-400">
+                  {step.num}
+                </div>
+                <div>
+                  <h3 className="mb-2 font-semibold text-white">{step.title}</h3>
+                  <p className="text-sm leading-relaxed text-gray-400">{step.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Comparison table ── */}
+      <section className="px-6 py-20">
+        <div className="mx-auto max-w-3xl">
+          <h2 className="mb-3 text-center text-3xl font-bold">
+            Why KubeForge?
+          </h2>
+          <p className="mb-12 text-center text-gray-400">
+            Not every learning method is equal. Here&apos;s how KubeForge stacks up.
+          </p>
+
+          <div className="overflow-hidden rounded-2xl border border-surface-600">
+            {/* header */}
+            <div className="grid grid-cols-4 border-b border-surface-600 bg-surface-800 px-6 py-4 text-sm font-semibold">
+              <div className="col-span-1 text-gray-400">Feature</div>
+              <div className="text-center text-teal-400">KubeForge</div>
+              <div className="text-center text-gray-500">Video courses</div>
+              <div className="text-center text-gray-500">Docs / blogs</div>
+            </div>
+
+            {/* rows */}
+            {COMPARE_ROWS.map((row, i) => (
+              <div
+                key={row.feature}
+                className={`grid grid-cols-4 px-6 py-4 text-sm ${
+                  i % 2 === 0 ? "bg-surface-900/40" : "bg-surface-800/30"
+                }`}
+              >
+                <div className="col-span-1 text-gray-300 flex items-center">{row.feature}</div>
+                <div className="flex items-center justify-center"><CheckIcon checked={row.kubeforge} /></div>
+                <div className="flex items-center justify-center"><CheckIcon checked={row.video} /></div>
+                <div className="flex items-center justify-center"><CheckIcon checked={row.docs} /></div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* ── Phase roadmap ── */}
       <section className="px-6 py-16 bg-surface-800/40 border-y border-surface-600">
         <div className="mx-auto max-w-5xl">
@@ -319,6 +430,26 @@ export function LandingPage() {
               </div>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* ── Built by ── */}
+      <section className="px-6 py-20">
+        <div className="mx-auto max-w-2xl text-center">
+          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-surface-600 bg-surface-800 px-4 py-1.5 text-xs font-semibold text-gray-400">
+            BUILT BY A PRACTITIONER
+          </div>
+          <h2 className="mb-6 text-3xl font-bold">Made by someone who passed the CKA</h2>
+          <p className="mb-6 text-gray-400 leading-relaxed">
+            KubeForge was built by an AWS Containers Support Engineer who spent years debugging
+            EKS clusters, Karpenter nodepool drift, IRSA misconfigs, and ECR pull failures in
+            production — and wanted a learning tool that actually matches that reality.
+          </p>
+          <p className="text-gray-400 leading-relaxed">
+            Every lab is based on real incidents. Every phase mirrors the progression from
+            &ldquo;what is a Pod?&rdquo; to &ldquo;why is Karpenter not consolidating my spot nodes?&rdquo;
+            No lab is theoretical. No lab is a multiple-choice question.
+          </p>
         </div>
       </section>
 
