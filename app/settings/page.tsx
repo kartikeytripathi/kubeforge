@@ -46,17 +46,39 @@ export default function SettingsPage() {
 
       {/* Storage info */}
       <div className="rounded-xl border border-surface-600 bg-surface-800 p-5">
-        <h2 className="mb-2 text-sm font-semibold uppercase tracking-wider text-gray-400">
+        <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-gray-400">
           Progress Storage
         </h2>
-        <p className="text-sm text-gray-400">
-          Progress (completed labs, attempts, streak) is stored in your browser&apos;s{" "}
-          <code className="rounded bg-surface-700 px-1.5 py-0.5 text-xs text-teal-400">
-            localStorage
-          </code>
-          . It persists across page refreshes but is local to this browser — clearing site data or
-          using a different browser will start fresh.
-        </p>
+        <div className="space-y-3">
+          <div className="flex items-start gap-3">
+            <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-teal-600/20">
+              <svg className="h-3 w-3 text-teal-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-sm font-medium text-gray-200">Synced to MongoDB</p>
+              <p className="mt-0.5 text-xs text-gray-500">
+                Lab completions, attempts, and streak are persisted in your account — available on any device you sign in to.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-start gap-3">
+            <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-surface-700">
+              <svg className="h-3 w-3 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3m0 0v3m0-3h3m-3 0H9" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-sm font-medium text-gray-400">Local cache</p>
+              <p className="mt-0.5 text-xs text-gray-500">
+                A copy is kept in{" "}
+                <code className="rounded bg-surface-700 px-1 py-0.5 text-xs text-teal-400">localStorage</code>
+                {" "}as a fast fallback while data loads from the server.
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Danger zone */}
