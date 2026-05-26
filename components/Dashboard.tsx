@@ -10,11 +10,20 @@ import {
   getEksReadiness,
 } from "@/lib/progress-store";
 
+const LAB_ORDER = [
+  "a1","a2","a3","a4","a5","a6","a7","a8",
+  "b1","b2","b3","b4","b5","b6","b7","b8","b9","b10",
+  "c1","c2","c3","c4","c5","c6","c7","c8","c9",
+  "d1","d2","d3","d4","d5","d6","d7","d8","d9","d10","d11","d12","d13",
+];
+
 export function Dashboard() {
   const completions = useProgressStore((s) => s.completions);
   const attempts = useProgressStore((s) => s.attempts);
 
   const completedLabIds = getCompletedLabIds(completions);
+  const completedSet = new Set(completedLabIds);
+  const nextLab = LAB_ORDER.find((id) => !completedSet.has(id)) ?? "a1";
   const streak = getStreak(attempts);
   const activityDays = getActivityDays(attempts);
   const ckaReadiness = getCkaReadiness(completions);
@@ -97,10 +106,10 @@ export function Dashboard() {
           Browse Curriculum
         </Link>
         <Link
-          href="/lesson/a1"
+          href={`/lesson/${nextLab}`}
           className="rounded-lg border border-surface-600 px-5 py-2.5 text-sm font-semibold text-gray-300 hover:bg-surface-700 transition-colors"
         >
-          Start Lab A1 →
+          {completedLabIds.length > 0 ? `Continue → ${nextLab.toUpperCase()}` : "Start Lab A1 →"}
         </Link>
       </section>
     </div>
