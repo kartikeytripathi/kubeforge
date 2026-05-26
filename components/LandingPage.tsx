@@ -475,25 +475,6 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* ── Built by ── */}
-      <section className="px-4 sm:px-6 py-14 sm:py-20">
-        <div className="mx-auto max-w-2xl text-center">
-          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-surface-600 bg-surface-800 px-4 py-1.5 text-xs font-semibold text-gray-400">
-            BUILT BY A PRACTITIONER
-          </div>
-          <h2 className="mb-6 text-3xl font-bold">Made by someone who passed the CKA</h2>
-          <p className="mb-6 text-gray-400 leading-relaxed">
-            KubeForge was built by an AWS Containers Support Engineer who spent years debugging
-            EKS clusters, Karpenter nodepool drift, IRSA misconfigs, and ECR pull failures in
-            production — and wanted a learning tool that actually matches that reality.
-          </p>
-          <p className="text-gray-400 leading-relaxed">
-            Every lab is based on real incidents. Every phase mirrors the progression from
-            &ldquo;what is a Pod?&rdquo; to &ldquo;why is Karpenter not consolidating my spot nodes?&rdquo;
-            No lab is theoretical. No lab is a multiple-choice question.
-          </p>
-        </div>
-      </section>
 
       {/* ── FAQ ── */}
       <section className="px-4 sm:px-6 py-14 sm:py-20 bg-surface-800/40 border-y border-surface-600">
