@@ -4,13 +4,24 @@ A webapp for learning Kubernetes and Amazon EKS through hands-on labs. Every con
 
 **Target learner:** Experienced AWS engineer pursuing CKA, moving into a DevOps role.
 
-**Live:** [kubeforge.vercel.app](https://kubeforge.vercel.app) — jump straight to [lesson/a1](https://kubeforge.vercel.app/lesson/a1)
+**Live:** [kubeforge.kartikeytripathi.in](https://kubeforge.kartikeytripathi.in)
+
+---
+
+## Features
+
+- **In-browser Kubernetes cluster** — real `kubectl` commands, no cloud account needed
+- **38 hands-on labs** across 4 phases (Phase A → D)
+- **Automated lab verification** — pass/fail in milliseconds, not multiple choice
+- **GitHub OAuth** — sign in with GitHub, progress synced across devices
+- **MongoDB-backed progress** — lab attempts and completions persisted per user
+- **Animated landing page** — full-screen hero with live terminal animation
 
 ---
 
 ## Labs
 
-38 labs across 4 phases, all available on the [curriculum page](https://kubeforge.vercel.app/curriculum).
+38 labs across 4 phases, all available on the [curriculum page](https://kubeforge.kartikeytripathi.in/curriculum).
 
 | Phase | Title | Labs |
 |---|---|---|
@@ -87,13 +98,15 @@ A webapp for learning Kubernetes and Amazon EKS through hands-on labs. Every con
 |---|---|
 | Framework | Next.js 14 App Router + TypeScript 5 |
 | Styling | Tailwind CSS v4 + custom dark theme |
+| Auth | NextAuth v5 (GitHub OAuth, JWT sessions) |
+| Database | MongoDB Atlas (Mongoose) |
 | Code editor | Monaco Editor (`@monaco-editor/react`) |
 | Cluster diagrams | React Flow (`reactflow`) |
 | YAML parsing | `js-yaml` |
 | Lesson content | MDX rendered via `marked` |
-| State / progress | Zustand with `localStorage` persist |
-| Database | SQLite via Prisma 7 (ephemeral on Vercel — progress lives in localStorage) |
+| Local state | Zustand with `localStorage` persist |
 | Testing | Vitest (unit) + Playwright (e2e) |
+| Hosting | Vercel |
 | Package manager | pnpm |
 
 ---
@@ -103,30 +116,46 @@ A webapp for learning Kubernetes and Amazon EKS through hands-on labs. Every con
 ```
 kubeforge/
 ├── app/
-│   ├── lesson/[id]/          # Lab pages (server-rendered, force-dynamic)
-│   ├── curriculum/           # Phase/lesson browser
-│   ├── progress/             # Heatmap + readiness gauges
-│   └── settings/             # Keyboard shortcuts, cluster options
+│   ├── api/
+│   │   ├── auth/[...nextauth]/   # NextAuth route handler
+│   │   ├── attempt/              # Record lab attempt → MongoDB
+│   │   ├── complete/             # Record lab completion → MongoDB
+│   │   └── progress/             # Fetch user progress from MongoDB
+│   ├── lesson/[id]/              # Lab pages (server-rendered, force-dynamic)
+│   ├── curriculum/               # Phase/lesson browser
+│   ├── progress/                 # Heatmap + readiness gauges
+│   └── settings/                 # Keyboard shortcuts, cluster options
 ├── components/
-│   ├── LabPane.tsx           # Three-panel lab layout
-│   ├── YamlEditor.tsx        # Monaco editor (YAML mode)
-│   ├── ClusterCanvas.tsx     # React Flow cluster visualisation
-│   ├── VerifyPanel.tsx       # Objectives checklist + hints
-│   └── AppShell.tsx          # Top nav + sidebar wrapper
+│   ├── LandingPage.tsx           # Animated landing page (unauthenticated)
+│   ├── Dashboard.tsx             # Progress dashboard (authenticated)
+│   ├── AuthButton.tsx            # GitHub sign in/out + avatar
+│   ├── LabPane.tsx               # Three-panel lab layout
+│   ├── YamlEditor.tsx            # Monaco editor (YAML mode)
+│   ├── ClusterCanvas.tsx         # React Flow cluster visualisation
+│   ├── VerifyPanel.tsx           # Objectives checklist + hints
+│   └── AppShell.tsx              # Top nav + sidebar wrapper
 ├── lib/
-│   ├── simulator/            # In-memory K8s cluster state machine
-│   │   ├── index.ts          # ClusterSimulator class + apply/tick/query API
-│   │   ├── reconciler.ts     # Deployment→RS→Pod, scheduling, crash detection
-│   │   ├── types.ts          # K8s object types (Pod, Deployment, Service…)
-│   │   └── utils.ts          # Label matching, uid helpers
-│   ├── verifiers/            # Per-lab assertion functions (one file per lab)
-│   └── progress-store.ts     # Zustand progress store (localStorage)
+│   ├── simulator/                # In-memory K8s cluster state machine
+│   │   ├── index.ts              # ClusterSimulator class + apply/tick/query API
+│   │   ├── reconciler.ts         # Deployment→RS→Pod, scheduling, crash detection
+│   │   ├── types.ts              # K8s object types (Pod, Deployment, Service…)
+│   │   └── utils.ts              # Label matching, uid helpers
+│   ├── models/
+│   │   ├── User.ts               # Mongoose user model (githubId, name, email, avatar)
+│   │   ├── LabAttempt.ts         # Mongoose attempt model
+│   │   └── LabCompletion.ts      # Mongoose completion model
+│   ├── mongoose.ts               # MongoDB connection singleton
+│   ├── verifiers/                # Per-lab assertion functions (one file per lab)
+│   └── progress-store.ts         # Zustand progress store (localStorage)
+├── auth.ts                       # NextAuth full config (Node.js — mongoose signIn hook)
+├── auth.config.ts                # NextAuth edge config (used by middleware)
+├── middleware.ts                  # Route protection — redirects unauthenticated users
 ├── content/
-│   ├── lessons/              # MDX concept text (one per lab, ≤400 words)
-│   └── labs/                 # JSON lab definitions (starter YAML, objectives, hints, solution)
+│   ├── lessons/                  # MDX concept text (one per lab, ≤400 words)
+│   └── labs/                     # JSON lab definitions (starter YAML, objectives, hints, solution)
 └── tests/
-    ├── unit/                 # Vitest — simulator + verifier tests
-    └── e2e/                  # Playwright — phase smoke tests
+    ├── unit/                     # Vitest — simulator + verifier tests
+    └── e2e/                      # Playwright — phase smoke tests
 ```
 
 ---
@@ -134,12 +163,35 @@ kubeforge/
 ## Local Development
 
 ```bash
+# 1. Install dependencies
 pnpm install
-pnpm db:generate
-pnpm db:migrate   # creates prisma/dev.db
+
+# 2. Set up environment variables
+cp .env.example .env.local
+# Fill in MONGODB_URI, GITHUB_ID, GITHUB_SECRET, AUTH_SECRET, AUTH_URL
+
+# 3. Start dev server
 pnpm dev
 # → http://localhost:3000
 ```
+
+### Required environment variables
+
+| Variable | Description |
+|---|---|
+| `MONGODB_URI` | MongoDB Atlas connection string |
+| `GITHUB_ID` | GitHub OAuth App client ID |
+| `GITHUB_SECRET` | GitHub OAuth App client secret |
+| `AUTH_SECRET` | Random secret — `openssl rand -base64 32` |
+| `AUTH_URL` | App URL (`http://localhost:3000` locally) |
+
+### GitHub OAuth App setup
+
+1. GitHub → Settings → Developer settings → OAuth Apps → New OAuth App
+2. **Authorization callback URL:** `http://localhost:3000/api/auth/callback/github`
+3. Copy Client ID and generate Client Secret → add to `.env.local`
+
+---
 
 ## Scripts
 
@@ -150,14 +202,3 @@ pnpm dev
 | `pnpm test` | Run Vitest unit tests |
 | `pnpm test:watch` | Vitest in watch mode |
 | `pnpm test:e2e` | Run Playwright e2e tests |
-| `pnpm db:generate` | Generate Prisma client |
-| `pnpm db:migrate` | Run database migrations |
-| `pnpm db:studio` | Open Prisma Studio |
-
----
-
-## Non-Goals (v1)
-
-- No login / multi-tenancy / SaaS scaffolding
-- No in-app AI assistant (reveal-solution button only, after 3 failures)
-- No telemetry or external API calls beyond K8s docs links
