@@ -66,12 +66,23 @@ export function LabPane({ lab, verifier, hiddenSetupYaml }: Props) {
       const allPassed = r.every((x) => x.passed);
 
       recordAttempt(lab.id, allPassed);
+      fetch("/api/attempt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ labId: lab.id, yaml, passed: allPassed }),
+      }).catch(() => {});
 
       if (!allPassed) {
         setFailCount((c) => c + 1);
       } else if (!completedRef.current) {
         completedRef.current = true;
-        recordCompletion(lab.id, Date.now() - startTimeRef.current);
+        const durationMs = Date.now() - startTimeRef.current;
+        recordCompletion(lab.id, durationMs);
+        fetch("/api/complete", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ labId: lab.id, durationMs }),
+        }).catch(() => {});
       }
       setIsVerifying(false);
     }, 50);
