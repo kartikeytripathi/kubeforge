@@ -3,6 +3,7 @@
 import { signIn } from "next-auth/react";
 import { useEffect, useRef, useState } from "react";
 import { KubeForgeIcon } from "./KubeForgeIcon";
+import { useInView } from "@/hooks/useInView";
 
 // ── Terminal animation ────────────────────────────────────────────────────────
 
@@ -57,15 +58,12 @@ function TerminalWindow() {
 
   return (
     <div className="animate-float relative w-full max-w-lg rounded-xl border border-surface-600 bg-surface-800 shadow-2xl shadow-black/60 overflow-hidden">
-      {/* title bar */}
       <div className="flex items-center gap-2 border-b border-surface-600 bg-surface-900 px-4 py-3">
         <span className="h-3 w-3 rounded-full bg-red-500/70" />
         <span className="h-3 w-3 rounded-full bg-amber-500/70" />
         <span className="h-3 w-3 rounded-full bg-emerald-500/70" />
         <span className="ml-3 text-xs text-gray-500 font-mono">kubeforge — lab a2</span>
       </div>
-
-      {/* content */}
       <div className="min-h-[200px] p-4 font-mono text-sm leading-relaxed">
         {LINES.slice(0, shown).map((line, i) => {
           const isLast = i === shown - 1;
@@ -79,6 +77,46 @@ function TerminalWindow() {
           );
         })}
       </div>
+    </div>
+  );
+}
+
+// ── Floating K8s nodes ────────────────────────────────────────────────────────
+
+const NODES = [
+  { cls: "animate-drift-1", style: { top: "12%",  left: "8%"  }, size: "h-8 w-8",   opacity: "opacity-10" },
+  { cls: "animate-drift-2", style: { top: "25%",  left: "88%" }, size: "h-5 w-5",   opacity: "opacity-[0.07]" },
+  { cls: "animate-drift-3", style: { top: "65%",  left: "6%"  }, size: "h-12 w-12", opacity: "opacity-[0.06]" },
+  { cls: "animate-drift-4", style: { top: "75%",  left: "82%" }, size: "h-6 w-6",   opacity: "opacity-10" },
+  { cls: "animate-drift-5", style: { top: "45%",  left: "92%" }, size: "h-9 w-9",   opacity: "opacity-[0.08]" },
+  { cls: "animate-drift-6", style: { top: "8%",   left: "55%" }, size: "h-4 w-4",   opacity: "opacity-10" },
+  { cls: "animate-drift-7", style: { top: "85%",  left: "40%" }, size: "h-7 w-7",   opacity: "opacity-[0.07]" },
+  { cls: "animate-drift-8", style: { top: "50%",  left: "3%"  }, size: "h-5 w-5",   opacity: "opacity-[0.06]" },
+];
+
+function FloatingNodes() {
+  return (
+    <div className="pointer-events-none absolute inset-0 overflow-hidden">
+      {NODES.map((n, i) => (
+        <div key={i} className={`absolute ${n.cls} ${n.opacity}`} style={n.style}>
+          <KubeForgeIcon className={`${n.size} text-teal-400`} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── Scroll-reveal wrapper ─────────────────────────────────────────────────────
+
+function Reveal({ children, delay = 0 }: { children: React.ReactNode; delay?: number }) {
+  const { ref, inView } = useInView();
+  return (
+    <div
+      ref={ref}
+      className={inView ? "scroll-visible" : "scroll-hidden"}
+      style={{ transitionDelay: `${delay}ms` }}
+    >
+      {children}
     </div>
   );
 }
@@ -118,10 +156,10 @@ const FEATURES = [
 // ── Phases ───────────────────────────────────────────────────────────────────
 
 const PHASES = [
-  { id: "A", label: "Foundations", labs: 8,  color: "border-teal-600 text-teal-400",  desc: "Pods · Deployments · Services · PVCs · RBAC" },
-  { id: "B", label: "Production",  labs: 10, color: "border-blue-500 text-blue-400",  desc: "Probes · HPA · StatefulSets · Ingress · Jobs" },
+  { id: "A", label: "Foundations", labs: 8,  color: "border-teal-600 text-teal-400",     desc: "Pods · Deployments · Services · PVCs · RBAC" },
+  { id: "B", label: "Production",  labs: 10, color: "border-blue-500 text-blue-400",     desc: "Probes · HPA · StatefulSets · Ingress · Jobs" },
   { id: "C", label: "Advanced",    labs: 9,  color: "border-violet-500 text-violet-400", desc: "Network Policies · OPA · Mesh · GitOps" },
-  { id: "D", label: "AWS EKS",     labs: 13, color: "border-amber-500 text-amber-400", desc: "IRSA · Karpenter · ALB · Fargate · ECR" },
+  { id: "D", label: "AWS EKS",     labs: 13, color: "border-amber-500 text-amber-400",   desc: "IRSA · Karpenter · ALB · Fargate · ECR" },
 ];
 
 // ── GitHub button ─────────────────────────────────────────────────────────────
@@ -139,9 +177,7 @@ function SignInButton({ size = "lg" }: { size?: "sm" | "lg" }) {
     <button
       onClick={() => signIn("github")}
       className={`animate-pulse-glow inline-flex items-center gap-3 rounded-xl bg-teal-600 font-semibold text-white transition-all hover:bg-teal-700 hover:scale-[1.02] active:scale-[0.98] ${
-        size === "lg"
-          ? "px-8 py-4 text-base"
-          : "px-5 py-2.5 text-sm"
+        size === "lg" ? "px-8 py-4 text-base" : "px-5 py-2.5 text-sm"
       }`}
     >
       <GitHubIcon className={size === "lg" ? "h-5 w-5" : "h-4 w-4"} />
@@ -167,63 +203,39 @@ export function LandingPage() {
 
       {/* ── Hero ── */}
       <section className="relative flex min-h-screen flex-col items-center justify-center px-6 pt-20 pb-16 overflow-hidden">
-
-        {/* Animated grid background */}
+        {/* Grid background */}
         <div
-          className="animate-grid-pan pointer-events-none absolute inset-0 opacity-100"
+          className="animate-grid-pan pointer-events-none absolute inset-0"
           style={{
             backgroundImage:
               "linear-gradient(rgba(13,148,136,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(13,148,136,0.08) 1px, transparent 1px)",
             backgroundSize: "64px 64px",
           }}
         />
-        {/* Radial vignette + glow */}
+        {/* Floating K8s nodes */}
+        <FloatingNodes />
+        {/* Radial glow */}
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_-10%,rgba(13,148,136,0.18),transparent)]" />
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_60%_40%_at_50%_110%,rgba(13,148,136,0.08),transparent)]" />
         <div className="pointer-events-none absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-surface-900 to-transparent" />
 
         <div className="relative z-10 mx-auto flex w-full max-w-6xl flex-col items-center gap-12 lg:flex-row lg:items-center lg:gap-16">
-
-          {/* Left — terminal */}
-          <div className="w-full lg:w-1/2 animate-fade-in-up" style={{ animationDelay: "0ms" }}>
+          <div className="w-full lg:w-1/2 animate-fade-in-up">
             <TerminalWindow />
           </div>
-
-          {/* Right — copy */}
           <div className="w-full lg:w-1/2 text-center lg:text-left space-y-6">
-            <div
-              className="animate-fade-in-up inline-flex items-center gap-2 rounded-full border border-teal-600/40 bg-teal-600/10 px-4 py-1.5 text-xs font-semibold text-teal-400 tracking-wider"
-              style={{ animationDelay: "100ms" }}
-            >
+            <div className="animate-fade-in-up inline-flex items-center gap-2 rounded-full border border-teal-600/40 bg-teal-600/10 px-4 py-1.5 text-xs font-semibold text-teal-400 tracking-wider" style={{ animationDelay: "100ms" }}>
               <span className="h-1.5 w-1.5 rounded-full bg-teal-400 animate-pulse" />
               38 HANDS-ON LABS · PHASE A → D
             </div>
-
-            <h1
-              className="animate-fade-in-up text-5xl font-bold leading-[1.1] tracking-tight lg:text-6xl"
-              style={{ animationDelay: "200ms" }}
-            >
-              Learn Kubernetes{" "}
-              <span className="text-teal-400">by doing.</span>
+            <h1 className="animate-fade-in-up text-4xl sm:text-5xl font-bold leading-[1.1] tracking-tight lg:text-6xl" style={{ animationDelay: "200ms" }}>
+              Learn Kubernetes{" "}<span className="text-teal-400">by doing.</span>
             </h1>
-
-            <p
-              className="animate-fade-in-up text-lg text-gray-400 max-w-md mx-auto lg:mx-0"
-              style={{ animationDelay: "320ms" }}
-            >
-              Real kubectl commands. In-browser cluster. Automated lab
-              verification. Go from Kubernetes basics to AWS EKS expert — no
-              cloud account required.
+            <p className="animate-fade-in-up text-lg text-gray-400 max-w-md mx-auto lg:mx-0" style={{ animationDelay: "320ms" }}>
+              Real kubectl commands. In-browser cluster. Automated lab verification. Go from Kubernetes basics to AWS EKS expert — no cloud account required.
             </p>
-
-            <div
-              className="animate-fade-in-up flex flex-col items-center gap-4 lg:items-start"
-              style={{ animationDelay: "440ms" }}
-            >
+            <div className="animate-fade-in-up flex flex-col items-center gap-4 lg:items-start" style={{ animationDelay: "440ms" }}>
               <SignInButton size="lg" />
-              <p className="text-xs text-gray-600">
-                Free forever · No credit card · GitHub login
-              </p>
+              <p className="text-xs text-gray-600">Free forever · No credit card · GitHub login</p>
             </div>
           </div>
         </div>
@@ -231,53 +243,41 @@ export function LandingPage() {
 
       {/* ── Stats bar ── */}
       <section className="border-y border-surface-600 bg-surface-800/60 px-6 py-8">
-        <div className="mx-auto flex max-w-4xl flex-wrap items-center justify-center gap-12">
-          {[
-            { value: "38",   label: "Hands-on Labs"     },
-            { value: "4",    label: "Learning Phases"   },
-            { value: "100%", label: "In-browser"        },
-            { value: "Free", label: "Always"            },
-          ].map((s, i) => (
-            <div
-              key={s.label}
-              className="animate-fade-in-up text-center"
-              style={{ animationDelay: `${i * 80}ms` }}
-            >
-              <p className="text-4xl font-bold text-teal-400">{s.value}</p>
-              <p className="mt-1 text-sm text-gray-500">{s.label}</p>
-            </div>
-          ))}
-        </div>
+        <Reveal>
+          <div className="mx-auto flex max-w-4xl flex-wrap items-center justify-center gap-6 sm:gap-12">
+            {[
+              { value: "38",   label: "Hands-on Labs"   },
+              { value: "4",    label: "Learning Phases" },
+              { value: "100%", label: "In-browser"      },
+              { value: "Free", label: "Always"          },
+            ].map((s) => (
+              <div key={s.label} className="text-center">
+                <p className="text-4xl font-bold text-teal-400">{s.value}</p>
+                <p className="mt-1 text-sm text-gray-500">{s.label}</p>
+              </div>
+            ))}
+          </div>
+        </Reveal>
       </section>
 
       {/* ── Feature cards ── */}
       <section className="px-6 py-24">
         <div className="mx-auto max-w-5xl">
-          <h2
-            className="animate-fade-in-up mb-3 text-center text-3xl font-bold"
-            style={{ animationDelay: "0ms" }}
-          >
-            Not another video course
-          </h2>
-          <p
-            className="animate-fade-in-up mb-14 text-center text-gray-400"
-            style={{ animationDelay: "80ms" }}
-          >
-            Every concept is learned by solving a real scenario — not watching someone else solve it.
-          </p>
-          <div className="grid gap-6 md:grid-cols-3">
+          <Reveal>
+            <h2 className="mb-3 text-center text-3xl font-bold">Not another video course</h2>
+            <p className="mb-14 text-center text-gray-400">Every concept is learned by solving a real scenario — not watching someone else solve it.</p>
+          </Reveal>
+          <div className="grid gap-6 sm:grid-cols-2 md:grid-cols-3">
             {FEATURES.map((f, i) => (
-              <div
-                key={f.title}
-                className="animate-fade-in-up rounded-2xl border border-surface-600 bg-surface-800 p-6 transition-all duration-300 hover:border-teal-600/50 hover:bg-surface-700 hover:-translate-y-1"
-                style={{ animationDelay: `${i * 120}ms` }}
-              >
-                <div className="mb-4 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-teal-600/15 text-teal-400">
-                  {f.icon}
+              <Reveal key={f.title} delay={i * 100}>
+                <div className="h-full rounded-2xl border border-surface-600 bg-surface-800 p-6 transition-all duration-300 hover:border-teal-600/50 hover:bg-surface-700 hover:-translate-y-1">
+                  <div className="mb-4 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-teal-600/15 text-teal-400">
+                    {f.icon}
+                  </div>
+                  <h3 className="mb-2 font-semibold text-white">{f.title}</h3>
+                  <p className="text-sm leading-relaxed text-gray-400">{f.desc}</p>
                 </div>
-                <h3 className="mb-2 font-semibold text-white">{f.title}</h3>
-                <p className="text-sm leading-relaxed text-gray-400">{f.desc}</p>
-              </div>
+              </Reveal>
             ))}
           </div>
         </div>
@@ -286,37 +286,27 @@ export function LandingPage() {
       {/* ── Phase roadmap ── */}
       <section className="px-6 py-16 bg-surface-800/40 border-y border-surface-600">
         <div className="mx-auto max-w-5xl">
-          <h2 className="animate-fade-in-up mb-3 text-center text-3xl font-bold">
-            Four phases. One complete journey.
-          </h2>
-          <p className="animate-fade-in-up mb-12 text-center text-gray-400" style={{ animationDelay: "80ms" }}>
-            From your first Pod to EKS production architecture — structured and progressive.
-          </p>
-
+          <Reveal>
+            <h2 className="mb-3 text-center text-3xl font-bold">Four phases. One complete journey.</h2>
+            <p className="mb-12 text-center text-gray-400">From your first Pod to EKS production architecture — structured and progressive.</p>
+          </Reveal>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {PHASES.map((ph, i) => (
-              <div
-                key={ph.id}
-                className={`animate-fade-in-up relative rounded-xl border-2 bg-surface-800 p-5 transition-all duration-300 hover:-translate-y-1 ${ph.color.split(" ")[0]}`}
-                style={{ animationDelay: `${i * 100}ms` }}
-              >
-                {/* connector arrow */}
-                {i < PHASES.length - 1 && (
-                  <div className="absolute -right-3 top-1/2 z-10 hidden -translate-y-1/2 text-surface-600 lg:block">
-                    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                    </svg>
-                  </div>
-                )}
-                <div className={`mb-3 text-xs font-bold uppercase tracking-widest ${ph.color.split(" ")[1]}`}>
-                  Phase {ph.id}
+              <Reveal key={ph.id} delay={i * 80}>
+                <div className={`relative rounded-xl border-2 bg-surface-800 p-5 transition-all duration-300 hover:-translate-y-1 ${ph.color.split(" ")[0]}`}>
+                  {i < PHASES.length - 1 && (
+                    <div className="absolute -right-3 top-1/2 z-10 hidden -translate-y-1/2 text-surface-600 lg:block">
+                      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                      </svg>
+                    </div>
+                  )}
+                  <div className={`mb-3 text-xs font-bold uppercase tracking-widest ${ph.color.split(" ")[1]}`}>Phase {ph.id}</div>
+                  <p className="mb-1 text-base font-semibold text-white">{ph.label}</p>
+                  <p className={`mb-3 text-2xl font-bold ${ph.color.split(" ")[1]}`}>{ph.labs} labs</p>
+                  <p className="text-xs leading-relaxed text-gray-500">{ph.desc}</p>
                 </div>
-                <p className="mb-1 text-base font-semibold text-white">{ph.label}</p>
-                <p className={`mb-3 text-2xl font-bold ${ph.color.split(" ")[1]}`}>
-                  {ph.labs} labs
-                </p>
-                <p className="text-xs leading-relaxed text-gray-500">{ph.desc}</p>
-              </div>
+              </Reveal>
             ))}
           </div>
         </div>
@@ -325,18 +315,16 @@ export function LandingPage() {
       {/* ── Final CTA ── */}
       <section className="relative overflow-hidden px-6 py-28 text-center">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_60%_60%_at_50%_50%,rgba(13,148,136,0.12),transparent)]" />
-        <div className="relative z-10 mx-auto max-w-xl">
-          <KubeForgeIcon className="mx-auto mb-6 h-14 w-14 text-teal-600 opacity-90" />
-          <h2 className="animate-fade-in-up mb-4 text-4xl font-bold">
-            Ready to get your hands dirty?
-          </h2>
-          <p className="animate-fade-in-up mb-10 text-lg text-gray-400" style={{ animationDelay: "80ms" }}>
-            Sign in with GitHub and start Lab A1 in under 30 seconds.
-          </p>
-          <div className="animate-fade-in-up flex justify-center" style={{ animationDelay: "160ms" }}>
-            <SignInButton size="lg" />
+        <Reveal>
+          <div className="relative z-10 mx-auto max-w-xl">
+            <KubeForgeIcon className="mx-auto mb-6 h-14 w-14 text-teal-600 opacity-90" />
+            <h2 className="mb-4 text-4xl font-bold">Ready to get your hands dirty?</h2>
+            <p className="mb-10 text-lg text-gray-400">Sign in with GitHub and start Lab A1 in under 30 seconds.</p>
+            <div className="flex justify-center">
+              <SignInButton size="lg" />
+            </div>
           </div>
-        </div>
+        </Reveal>
       </section>
 
       {/* ── Footer ── */}

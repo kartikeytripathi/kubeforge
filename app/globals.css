@@ -78,3 +78,22 @@ body {
 .animate-pulse-glow  { animation: pulseGlow 2.5s ease-in-out infinite; }
 .animate-cursor      { animation: cursorBlink 1s step-end infinite; }
 .animate-grid-pan    { animation: gridPan 8s linear infinite; }
+
+@keyframes floatDrift {
+  0%   { transform: translateY(0px)   rotate(0deg); }
+  33%  { transform: translateY(-10px) rotate(4deg); }
+  66%  { transform: translateY(-4px)  rotate(-3deg); }
+  100% { transform: translateY(0px)   rotate(0deg); }
+}
+.animate-drift-1 { animation: floatDrift 7s  ease-in-out infinite; }
+.animate-drift-2 { animation: floatDrift 9s  ease-in-out infinite 1.5s; }
+.animate-drift-3 { animation: floatDrift 6s  ease-in-out infinite 0.8s; }
+.animate-drift-4 { animation: floatDrift 11s ease-in-out infinite 2.2s; }
+.animate-drift-5 { animation: floatDrift 8s  ease-in-out infinite 3.1s; }
+.animate-drift-6 { animation: floatDrift 10s ease-in-out infinite 0.4s; }
+.animate-drift-7 { animation: floatDrift 7s  ease-in-out infinite 1.8s; }
+.animate-drift-8 { animation: floatDrift 9s  ease-in-out infinite 2.7s; }
+
+/* Scroll-reveal utility — toggled via JS */
+.scroll-hidden  { opacity: 0; transform: translateY(24px); }
+.scroll-visible { opacity: 1; transform: translateY(0);    transition: opacity 0.7s ease-out, transform 0.7s ease-out; }
