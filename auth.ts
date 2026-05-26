@@ -11,7 +11,7 @@ const resend = process.env.RESEND_API_KEY
 async function notifyNewUser(name: string, email: string, githubId: string) {
   if (!resend) return;
   await resend.emails.send({
-    from:    "KubeForge <onboarding@resend.dev>",
+    from:    "KubeForge <noreply@kubeforge.kartikeytripathi.in>",
     to:      "kartikey.tripathi.37@gmail.com",
     subject: `New signup: ${name || "Unknown"}`,
     html: `
