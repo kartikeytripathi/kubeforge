@@ -207,7 +207,7 @@ export function LabPane({ lab, verifier, hiddenSetupYaml, scenarioHtml, scenario
   const completedRef   = useRef(false);
   const dragStateRef   = useRef<{ type: "left" | "right"; startX: number; startWidth: number } | null>(null);
 
-  const { state, applyYaml, reset, simulator } = useSimulator(hiddenSetupYaml);
+  const { state, applyYaml, reset, simulator } = useSimulator(hiddenSetupYaml, lab.starterYaml);
   const recordAttempt    = useProgressStore((s) => s.recordAttempt);
   const recordCompletion = useProgressStore((s) => s.recordCompletion);
 

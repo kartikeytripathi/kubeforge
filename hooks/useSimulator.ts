@@ -6,7 +6,7 @@ import type { ClusterState } from "@/lib/simulator/types";
 
 const TICK_INTERVAL_MS = 250;
 
-export function useSimulator(initialYaml?: string) {
+export function useSimulator(hiddenSetupYaml?: string, starterYaml?: string) {
   const simRef = useRef<ClusterSimulator | null>(null);
   const [state, setState] = useState<ClusterState | null>(null);
 
@@ -14,22 +14,19 @@ export function useSimulator(initialYaml?: string) {
     const sim = new ClusterSimulator();
     simRef.current = sim;
 
-    // Apply hidden setup YAML if provided
-    if (initialYaml) {
-      try {
-        sim.apply(initialYaml);
-      } catch {
-        // ignore parse errors in hidden setup
-      }
+    // Apply hidden setup first (pre-existing broken state), then starter YAML
+    // so the simulator reflects what the editor already shows on first load.
+    if (hiddenSetupYaml) {
+      try { sim.apply(hiddenSetupYaml); } catch { /* ignore */ }
+    }
+    if (starterYaml) {
+      try { sim.apply(starterYaml); } catch { /* ignore */ }
     }
 
     setState(structuredClone(sim.getState()) as ClusterState);
 
     const unsub = sim.subscribe((newState) => setState(newState));
-
-    const ticker = setInterval(() => {
-      sim.tick();
-    }, TICK_INTERVAL_MS);
+    const ticker = setInterval(() => { sim.tick(); }, TICK_INTERVAL_MS);
 
     return () => {
       clearInterval(ticker);
@@ -49,14 +46,13 @@ export function useSimulator(initialYaml?: string) {
 
   const reset = useCallback(() => {
     simRef.current?.reset();
-    if (initialYaml) {
-      try {
-        simRef.current?.apply(initialYaml);
-      } catch {
-        // ignore
-      }
+    if (hiddenSetupYaml) {
+      try { simRef.current?.apply(hiddenSetupYaml); } catch { /* ignore */ }
     }
-  }, [initialYaml]);
+    if (starterYaml) {
+      try { simRef.current?.apply(starterYaml); } catch { /* ignore */ }
+    }
+  }, [hiddenSetupYaml, starterYaml]);
 
   return { state, applyYaml, reset, simulator: simRef };
 }
