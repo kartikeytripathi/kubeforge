@@ -19,14 +19,12 @@ export const metadata: Metadata = {
     title: "KubeForge — Hands-on Kubernetes & EKS Learning",
     description:
       "Learn Kubernetes and EKS by doing. 38 labs across 4 phases — real kubectl commands, in-browser cluster, automated verification. Free forever.",
-    images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "KubeForge" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "KubeForge — Hands-on Kubernetes & EKS Learning",
     description:
       "Learn Kubernetes and EKS by doing. 38 labs, real kubectl, automated verification. Free forever.",
-    images: ["/og-image.png"],
   },
   keywords: ["Kubernetes","EKS","CKA","kubectl","Kubernetes labs","hands-on Kubernetes","AWS EKS tutorial","Karpenter","IRSA","DevOps"],
   alternates: { canonical: BASE_URL },

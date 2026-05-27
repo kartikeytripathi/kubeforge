@@ -15,6 +15,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${BASE_URL}/curriculum`,     priority: 0.9,  changeFrequency: "weekly"  },
     { url: `${BASE_URL}/progress`,       priority: 0.5,  changeFrequency: "monthly" },
     { url: `${BASE_URL}/settings`,       priority: 0.3,  changeFrequency: "monthly" },
+    { url: `${BASE_URL}/privacy`,        priority: 0.2,  changeFrequency: "yearly"  },
   ];
 
   const labRoutes: MetadataRoute.Sitemap = LAB_IDS.map((id) => ({
