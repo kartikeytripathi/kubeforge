@@ -361,7 +361,7 @@ export function reconcileJobs(state: ClusterState): void {
         metadata: {
           name: `${job.metadata.name}-${Math.random().toString(36).slice(2, 7)}`,
           namespace: job.metadata.namespace,
-          labels: { ...job.spec.template.metadata.labels, "job-name": job.metadata.name },
+          labels: { ...(job.spec.template.metadata?.labels ?? {}), "job-name": job.metadata.name },
           uid: generateUid(),
           creationTimestamp: Date.now(),
           ownerReference: { kind: "Job", name: job.metadata.name, uid: job.metadata.uid },

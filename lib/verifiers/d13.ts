@@ -50,7 +50,7 @@ export function verifyD13(sim: ClusterSimulator, _yaml: string): ObjectiveResult
   });
 
   // Fix 4: orders-sa correct role ARN
-  const serviceAccounts = sim.getCustomResources("ServiceAccount", "default");
+  const serviceAccounts = sim.getServiceAccounts("default");
   const ordersSa = serviceAccounts.find((sa) => sa.metadata.name === "orders-sa");
   const roleArn = ordersSa?.metadata?.annotations?.["eks.amazonaws.com/role-arn"] ?? "";
   const hasCorrectRole = roleArn.includes("orders-ecr-pull");

@@ -394,7 +394,7 @@ export interface SimIngress {
 export interface SimServiceAccount {
   kind: "ServiceAccount";
   apiVersion: "v1";
-  metadata: { name: string; namespace: string; labels: Labels; uid: string; creationTimestamp: number };
+  metadata: { name: string; namespace: string; labels: Labels; uid: string; creationTimestamp: number; annotations?: Record<string, string> };
 }
 
 export interface PolicyRule {

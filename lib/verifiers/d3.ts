@@ -2,8 +2,7 @@ import type { ClusterSimulator } from "@/lib/simulator";
 import type { ObjectiveResult } from "./types";
 
 export function verifyD3(sim: ClusterSimulator, _yaml: string): ObjectiveResult[] {
-  // ServiceAccount annotations are stored as a CustomResource since SimServiceAccount doesn't have annotations
-  const saResources = sim.getCustomResources("ServiceAccount", "default");
+  const saResources = sim.getServiceAccounts("default");
   const sa = saResources.find((r) => r.metadata.name === "s3-reader");
   const results: ObjectiveResult[] = [];
 
