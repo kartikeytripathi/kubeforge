@@ -192,21 +192,7 @@ export function ClusterCanvas({ clusterState }: Props) {
 
   return (
     <div className="h-full w-full rounded-lg border border-surface-600 bg-surface-900">
-      <div className="flex items-center justify-between border-b border-surface-600 px-3 py-1.5">
-        <span className="text-xs font-mono text-gray-400">Cluster View</span>
-        <div className="flex gap-3 text-xs text-gray-500">
-          <span>
-            <span className="inline-block h-2 w-2 rounded-full bg-green-500 mr-1" />Running
-          </span>
-          <span>
-            <span className="inline-block h-2 w-2 rounded-full bg-yellow-500 mr-1" />Pending
-          </span>
-          <span>
-            <span className="inline-block h-2 w-2 rounded-full bg-red-500 mr-1" />CrashLoop
-          </span>
-        </div>
-      </div>
-      <div className="h-[calc(100%-32px)]">
+      <div className="h-full">
         <ReactFlow
           nodes={rfNodes}
           edges={rfEdges}
@@ -225,3 +211,4 @@ export function ClusterCanvas({ clusterState }: Props) {
     </div>
   );
 }
+

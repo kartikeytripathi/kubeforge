@@ -92,9 +92,11 @@ interface Props {
   lab: LabDefinition;
   labId: string;
   hiddenSetupYaml?: string;
+  scenarioHtml: string;
+  scenarioText: string;
 }
 
-export function LessonClient({ lab, labId, hiddenSetupYaml }: Props) {
+export function LessonClient({ lab, labId, hiddenSetupYaml, scenarioHtml, scenarioText }: Props) {
   const verifier = VERIFIERS[labId] ?? noopVerifier;
 
   return (
@@ -102,6 +104,8 @@ export function LessonClient({ lab, labId, hiddenSetupYaml }: Props) {
       lab={lab}
       verifier={verifier}
       hiddenSetupYaml={hiddenSetupYaml}
+      scenarioHtml={scenarioHtml}
+      scenarioText={scenarioText}
     />
   );
 }

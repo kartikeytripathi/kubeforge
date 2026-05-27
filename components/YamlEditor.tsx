@@ -27,11 +27,7 @@ export function YamlEditor({ value, onChange, readOnly = false }: Props) {
 
   return (
     <div className="h-full w-full overflow-hidden rounded-lg border border-surface-600 bg-surface-800">
-      <div className="flex items-center justify-between border-b border-surface-600 px-3 py-1.5">
-        <span className="text-xs font-mono text-gray-400">manifest.yaml</span>
-        <span className="text-xs text-gray-600">YAML</span>
-      </div>
-      <div className="h-[calc(100%-32px)]">
+      <div className="h-full">
         <MonacoEditor
           height="100%"
           defaultLanguage="yaml"
