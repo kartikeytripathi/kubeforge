@@ -633,14 +633,15 @@ function hasMissingRefs(state: ClusterState, pod: typeof state.pods[number]): bo
   for (const container of pod.spec.containers) {
     for (const env of container.env ?? []) {
       if (env.valueFrom?.configMapKeyRef) {
-        const name = env.valueFrom.configMapKeyRef.name;
-        if (!state.configMaps.some((cm) => cm.metadata.name === name && cm.metadata.namespace === ns))
-          return true;
+        const { name, key } = env.valueFrom.configMapKeyRef;
+        const cm = state.configMaps.find((c) => c.metadata.name === name && c.metadata.namespace === ns);
+        // Missing resource OR key not present in data → ContainerCreating
+        if (!cm || !cm.data?.[key]) return true;
       }
       if (env.valueFrom?.secretKeyRef) {
-        const name = env.valueFrom.secretKeyRef.name;
-        if (!state.secrets.some((s) => s.metadata.name === name && s.metadata.namespace === ns))
-          return true;
+        const { name, key } = env.valueFrom.secretKeyRef;
+        const secret = state.secrets.find((s) => s.metadata.name === name && s.metadata.namespace === ns);
+        if (!secret || !secret.data?.[key]) return true;
       }
     }
   }

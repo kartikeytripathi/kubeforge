@@ -261,6 +261,12 @@ export function LabPane({ lab, verifier, hiddenSetupYaml, scenarioHtml, scenario
   const handleVerify = useCallback(() => {
     if (!simulator.current) return;
     setIsVerifying(true);
+    // Always apply current editor content before verifying — the debounce-based
+    // auto-apply only fires on edit, so a user who hasn't typed anything yet
+    // would be verified against a stale simulator state.
+    simulator.current.apply(yaml);
+    // Force enough ticks for refs to resolve and pods to transition (START_TICKS = 3)
+    for (let i = 0; i < 6; i++) simulator.current.tick();
     setTimeout(() => {
       const r = verifier(simulator.current!, yaml);
       setResults(r);
