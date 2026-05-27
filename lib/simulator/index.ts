@@ -134,6 +134,7 @@ function applyManifest(state: ClusterState, doc: any): void {
           containers: doc.spec?.containers ?? [],
           restartPolicy: doc.spec?.restartPolicy ?? "Always",
           nodeSelector: doc.spec?.nodeSelector,
+          tolerations: doc.spec?.tolerations,
         },
         status:
           existing >= 0
@@ -432,7 +433,7 @@ function applyManifest(state: ClusterState, doc: any): void {
       const existing = state.serviceAccounts.findIndex((s) => s.metadata.name === name && s.metadata.namespace === namespace);
       const sa: SimServiceAccount = {
         kind: "ServiceAccount", apiVersion: "v1",
-        metadata: { name, namespace, labels: doc.metadata?.labels ?? {}, uid: existing >= 0 ? state.serviceAccounts[existing].metadata.uid : generateUid(), creationTimestamp: existing >= 0 ? state.serviceAccounts[existing].metadata.creationTimestamp : Date.now() },
+        metadata: { name, namespace, labels: doc.metadata?.labels ?? {}, uid: existing >= 0 ? state.serviceAccounts[existing].metadata.uid : generateUid(), creationTimestamp: existing >= 0 ? state.serviceAccounts[existing].metadata.creationTimestamp : Date.now(), annotations: doc.metadata?.annotations },
       };
       if (existing >= 0) state.serviceAccounts[existing] = sa; else state.serviceAccounts.push(sa);
       break;
@@ -574,6 +575,10 @@ function applyManifest(state: ClusterState, doc: any): void {
       const existing = state.customResources.findIndex(
         (r) => r.kind === kind && r.metadata.name === name && (r.metadata.namespace ?? "default") === namespace
       );
+      // For resources that have no `spec` (e.g. ValidatingWebhookConfiguration uses top-level `webhooks`),
+      // fold remaining top-level fields into spec so verifiers can access them uniformly via cr.spec.
+      const { kind: _k, apiVersion: _av, metadata: _m, status: _st, spec: _sp, ...topLevelRest } = doc as Record<string, unknown>;
+      const crSpec = (_sp != null ? _sp : Object.keys(topLevelRest).length > 0 ? topLevelRest : {}) as Record<string, unknown>;
       const cr: SimCustomResource = {
         kind,
         apiVersion: doc.apiVersion ?? "",
@@ -585,7 +590,7 @@ function applyManifest(state: ClusterState, doc: any): void {
           creationTimestamp: existing >= 0 ? state.customResources[existing].metadata.creationTimestamp : Date.now(),
           annotations: doc.metadata?.annotations,
         },
-        spec: doc.spec ?? {},
+        spec: crSpec,
         status: doc.status,
       };
       if (existing >= 0) state.customResources[existing] = cr;
