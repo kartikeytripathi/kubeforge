@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { signOut } from "next-auth/react";
 import { useProgressStore } from "@/lib/progress-store";
 
 const SHORTCUTS = [
@@ -9,15 +10,22 @@ const SHORTCUTS = [
 ];
 
 export default function SettingsPage() {
-  const [confirmed, setConfirmed] = useState(false);
+  const [confirmed, setConfirmed]           = useState(false);
+  const [deleteConfirmed, setDeleteConfirmed] = useState(false);
+  const [deleting, setDeleting]             = useState(false);
 
   function handleReset() {
-    if (!confirmed) {
-      setConfirmed(true);
-      return;
-    }
+    if (!confirmed) { setConfirmed(true); return; }
     useProgressStore.persist.clearStorage();
     window.location.reload();
+  }
+
+  async function handleDelete() {
+    if (!deleteConfirmed) { setDeleteConfirmed(true); return; }
+    setDeleting(true);
+    await fetch("/api/account/delete", { method: "DELETE" });
+    useProgressStore.persist.clearStorage();
+    await signOut({ callbackUrl: "/" });
   }
 
   return (
@@ -107,10 +115,35 @@ export default function SettingsPage() {
         {confirmed && (
           <p className="mt-3 text-xs text-red-400">
             Click again to confirm — this cannot be undone.{" "}
-            <button
-              onClick={() => setConfirmed(false)}
-              className="underline hover:no-underline"
-            >
+            <button onClick={() => setConfirmed(false)} className="underline hover:no-underline">
+              Cancel
+            </button>
+          </p>
+        )}
+
+        <div className="mt-4 border-t border-red-800/30 pt-4 flex items-center justify-between gap-4">
+          <div>
+            <p className="text-sm text-gray-300">Delete profile</p>
+            <p className="text-xs text-gray-500 mt-0.5">
+              Permanently deletes your account, all progress, and all lab attempts. You will be signed out immediately.
+            </p>
+          </div>
+          <button
+            onClick={handleDelete}
+            disabled={deleting}
+            className={`shrink-0 rounded-lg px-4 py-2 text-sm font-semibold transition-colors disabled:opacity-50 ${
+              deleteConfirmed
+                ? "bg-red-600 text-white hover:bg-red-700"
+                : "border border-red-800/60 text-red-400 hover:bg-red-900/30"
+            }`}
+          >
+            {deleting ? "Deleting…" : deleteConfirmed ? "Yes, delete everything" : "Delete profile"}
+          </button>
+        </div>
+        {deleteConfirmed && !deleting && (
+          <p className="mt-3 text-xs text-red-400">
+            Click again to confirm — this cannot be undone.{" "}
+            <button onClick={() => setDeleteConfirmed(false)} className="underline hover:no-underline">
               Cancel
             </button>
           </p>
