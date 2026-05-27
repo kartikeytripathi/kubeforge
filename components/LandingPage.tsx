@@ -524,8 +524,10 @@ export function LandingPage() {
           <span>KubeForge</span>
         </div>
         Built for DevOps engineers, SREs, and CKA candidates. No cloud account required.
-        <div className="mt-3">
+        <div className="mt-3 flex items-center justify-center gap-4">
           <a href="/privacy" className="hover:text-gray-400 transition-colors">Privacy Policy</a>
+          <span>·</span>
+          <a href="/tos" className="hover:text-gray-400 transition-colors">Terms of Service</a>
         </div>
       </footer>
 

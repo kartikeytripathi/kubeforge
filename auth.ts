@@ -43,6 +43,10 @@ async function welcomeNewUser(name: string, email: string) {
         <p style="color:#9CA3AF;margin:24px 0 0;font-size:12px;">
           Questions or feedback? Open an issue on <a href="https://github.com/kartikeytripathi/kubeforge" style="color:#F5C842;">GitHub</a>.
         </p>
+        <p style="color:#6B7280;margin:16px 0 0;font-size:11px;border-top:1px solid #1f1f1f;padding-top:16px;">
+          This is a one-time welcome email. KubeForge does not send newsletters or marketing emails.
+          To stop all emails, <a href="https://kubeforge.kartikeytripathi.in/settings" style="color:#9CA3AF;">delete your account</a> in Settings.
+        </p>
       </div>
     `,
   });

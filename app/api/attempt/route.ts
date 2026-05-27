@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { connectDB } from "@/lib/mongoose";
 import { LabAttempt } from "@/lib/models/LabAttempt";
 import { rateLimit } from "@/lib/rateLimit";
+import { VALID_LAB_IDS } from "@/lib/labs";
 
 export async function POST(req: NextRequest) {
   const session = await auth();
@@ -18,7 +19,9 @@ export async function POST(req: NextRequest) {
       yaml: string;
       passed: boolean;
     };
-    if (!labId) return NextResponse.json({ error: "labId required" }, { status: 400 });
+    if (!labId || !VALID_LAB_IDS.has(labId)) {
+      return NextResponse.json({ error: "invalid labId" }, { status: 400 });
+    }
 
     await connectDB();
     await LabAttempt.create({
