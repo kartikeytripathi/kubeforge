@@ -623,6 +623,40 @@ export function schedulePods(state: ClusterState): void {
   }
 }
 
+/**
+ * Returns true if the pod references a ConfigMap or Secret that does not yet
+ * exist in the cluster — exactly the condition that causes ContainerCreating
+ * to block indefinitely in real Kubernetes.
+ */
+function hasMissingRefs(state: ClusterState, pod: typeof state.pods[number]): boolean {
+  const ns = pod.metadata.namespace;
+  for (const container of pod.spec.containers) {
+    for (const env of container.env ?? []) {
+      if (env.valueFrom?.configMapKeyRef) {
+        const name = env.valueFrom.configMapKeyRef.name;
+        if (!state.configMaps.some((cm) => cm.metadata.name === name && cm.metadata.namespace === ns))
+          return true;
+      }
+      if (env.valueFrom?.secretKeyRef) {
+        const name = env.valueFrom.secretKeyRef.name;
+        if (!state.secrets.some((s) => s.metadata.name === name && s.metadata.namespace === ns))
+          return true;
+      }
+    }
+  }
+  for (const vol of pod.spec.volumes ?? []) {
+    if (vol.configMap) {
+      if (!state.configMaps.some((cm) => cm.metadata.name === vol.configMap!.name && cm.metadata.namespace === ns))
+        return true;
+    }
+    if (vol.secret) {
+      if (!state.secrets.some((s) => s.metadata.name === vol.secret!.secretName && s.metadata.namespace === ns))
+        return true;
+    }
+  }
+  return false;
+}
+
 /** Advance pod state machine: Pending → Running | CrashLoopBackOff */
 export function updatePodStatus(state: ClusterState): void {
   for (const pod of state.pods) {
@@ -649,6 +683,13 @@ export function updatePodStatus(state: ClusterState): void {
 
     // Pod must be scheduled before containers start
     if (!pod.spec.nodeName) continue;
+
+    // Block on missing ConfigMap/Secret refs — mirrors real K8s ContainerCreating behaviour.
+    // Reset _scheduledTick so the countdown restarts once the refs appear.
+    if (hasMissingRefs(state, pod)) {
+      pod.status._scheduledTick = state.tick;
+      continue;
+    }
 
     const scheduledTick = pod.status._scheduledTick ?? state.tick;
     const ticksSinceScheduled = state.tick - scheduledTick;
