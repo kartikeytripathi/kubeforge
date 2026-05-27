@@ -2,6 +2,11 @@
 
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef } from "react";
+import { loader } from "@monaco-editor/react";
+import * as monaco from "monaco-editor";
+
+// Use the locally bundled Monaco instead of CDN
+loader.config({ monaco });
 
 const MonacoEditor = dynamic(() => import("@monaco-editor/react"), { ssr: false });
 
