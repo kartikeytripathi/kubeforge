@@ -6,19 +6,46 @@
   "realWorldIncident": false,
   "scenario": "Ship a complete microservice stack to the `production` namespace in one YAML: a Namespace, ConfigMap with `LOG_LEVEL=info`, a Secret with a `jwt-secret` key, a Deployment (`api-server`, 3 replicas) wired to the ConfigMap and Secret, and a LoadBalancer Service exposing port 443.",
   "hiddenSetup": [],
-  "starterYaml": "apiVersion: v1\nkind: Namespace\nmetadata:\n  name: production\n---\napiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: api-config\n  namespace: production\ndata:\n  LOG_LEVEL: info\n---\napiVersion: v1\nkind: Secret\nmetadata:\n  name: api-secrets\n  namespace: production\ntype: Opaque\ndata:\n  jwt-secret: c3VwZXJzZWNyZXQ=\n---\napiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: api-server\n  namespace: production\nspec:\n  replicas: 3\n  selector:\n    matchLabels:\n      app: api-server\n  template:\n    metadata:\n      labels:\n        app: api-server\n    spec:\n      containers:\n      - name: api\n        image: node:20-alpine\n        env:\n        - name: LOG_LEVEL\n          valueFrom:\n            configMapKeyRef:\n              name: api-config\n              key: LOG_LEVEL\n        - name: JWT_SECRET\n          valueFrom:\n            secretKeyRef:\n              name: api-secrets\n              key: jwt-secret\n---\napiVersion: v1\nkind: Service\nmetadata:\n  name: api-svc\n  namespace: production\nspec:\n  type: LoadBalancer\n  selector:\n    app: api-server\n  ports:\n  - port: 443\n    targetPort: 3000\n",
+  "starterYaml": "apiVersion: v1\nkind: Namespace\nmetadata:\n  name: production\n---\napiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: api-config\n  namespace: production\ndata:\n  LOG_LEVEL_CONFIG: debug\n---\napiVersion: v1\nkind: Secret\nmetadata:\n  name: api-secrets\n  namespace: production\ntype: Opaque\ndata:\n  jwt-secret: c3VwZXJzZWNyZXQ=\n---\napiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: api-server\n  namespace: production\nspec:\n  replicas: 1\n  selector:\n    matchLabels:\n      app: api-server\n  template:\n    metadata:\n      labels:\n        app: api-server\n    spec:\n      containers:\n      - name: api\n        image: node:20-alpine\n        env:\n        - name: LOG_LEVEL\n          valueFrom:\n            configMapKeyRef:\n              name: api-config\n              key: LOG_LEVEL\n        - name: JWT_SECRET\n          valueFrom:\n            secretKeyRef:\n              name: api-secrets\n              key: jwt-secret\n---\napiVersion: v1\nkind: Service\nmetadata:\n  name: api-svc\n  namespace: production\nspec:\n  type: ClusterIP\n  selector:\n    app: api-server\n  ports:\n  - port: 80\n    targetPort: 3000\n",
   "objectives": [
-    { "id": "ns-exists",       "description": "Namespace `production` exists" },
-    { "id": "cm-exists",       "description": "ConfigMap `api-config` exists in `production` with key `LOG_LEVEL`" },
-    { "id": "secret-exists",   "description": "Secret `api-secrets` exists in `production` with key `jwt-secret`" },
-    { "id": "deploy-ready",    "description": "Deployment `api-server` has 3 ready replicas in `production`" },
-    { "id": "svc-lb",          "description": "Service `api-svc` is type `LoadBalancer` exposing port 443" },
-    { "id": "svc-endpoints",   "description": "Service routes to at least 1 Running pod" }
+    {
+      "id": "ns-exists",
+      "description": "Namespace `production` exists"
+    },
+    {
+      "id": "cm-exists",
+      "description": "ConfigMap `api-config` exists in `production` with key `LOG_LEVEL`"
+    },
+    {
+      "id": "secret-exists",
+      "description": "Secret `api-secrets` exists in `production` with key `jwt-secret`"
+    },
+    {
+      "id": "deploy-ready",
+      "description": "Deployment `api-server` has 3 ready replicas in `production`"
+    },
+    {
+      "id": "svc-lb",
+      "description": "Service `api-svc` is type `LoadBalancer` exposing port 443"
+    },
+    {
+      "id": "svc-endpoints",
+      "description": "Service routes to at least 1 Running pod"
+    }
   ],
   "hints": [
-    { "revealAfterMs": 60000,  "text": "All resources must be in the `production` namespace — check every `metadata.namespace` field." },
-    { "revealAfterMs": 120000, "text": "The ConfigMap key name (`LOG_LEVEL`) and Secret key name (`jwt-secret`) must match the env `valueFrom` references in the Deployment containers exactly." },
-    { "revealAfterMs": 180000, "text": "The starter YAML is already correct. Apply it as-is to complete the lab, then explore how each resource connects in the Cluster View." }
+    {
+      "revealAfterMs": 60000,
+      "text": "All resources must be in the `production` namespace \u2014 check every `metadata.namespace` field."
+    },
+    {
+      "revealAfterMs": 120000,
+      "text": "The ConfigMap key name (`LOG_LEVEL`) and Secret key name (`jwt-secret`) must match the env `valueFrom` references in the Deployment containers exactly."
+    },
+    {
+      "revealAfterMs": 180000,
+      "text": "The starter YAML is already correct. Apply it as-is to complete the lab, then explore how each resource connects in the Cluster View."
+    }
   ],
   "solution": "apiVersion: v1\nkind: Namespace\nmetadata:\n  name: production\n---\napiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: api-config\n  namespace: production\ndata:\n  LOG_LEVEL: info\n---\napiVersion: v1\nkind: Secret\nmetadata:\n  name: api-secrets\n  namespace: production\ntype: Opaque\ndata:\n  jwt-secret: c3VwZXJzZWNyZXQ=\n---\napiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: api-server\n  namespace: production\nspec:\n  replicas: 3\n  selector:\n    matchLabels:\n      app: api-server\n  template:\n    metadata:\n      labels:\n        app: api-server\n    spec:\n      containers:\n      - name: api\n        image: node:20-alpine\n        env:\n        - name: LOG_LEVEL\n          valueFrom:\n            configMapKeyRef:\n              name: api-config\n              key: LOG_LEVEL\n        - name: JWT_SECRET\n          valueFrom:\n            secretKeyRef:\n              name: api-secrets\n              key: jwt-secret\n---\napiVersion: v1\nkind: Service\nmetadata:\n  name: api-svc\n  namespace: production\nspec:\n  type: LoadBalancer\n  selector:\n    app: api-server\n  ports:\n  - port: 443\n    targetPort: 3000\n"
 }

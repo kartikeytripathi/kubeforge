@@ -6,16 +6,34 @@
   "realWorldIncident": false,
   "scenario": "Your platform team needs a `log-collector` DaemonSet that runs a logging agent on every node in the cluster. The simulator has 2 nodes. Deploy the DaemonSet and verify it schedules one pod per node.",
   "hiddenSetup": [],
-  "starterYaml": "apiVersion: apps/v1\nkind: DaemonSet\nmetadata:\n  name: log-collector\n  namespace: default\n  labels:\n    app: log-collector\nspec:\n  selector:\n    matchLabels:\n      app: log-collector\n  template:\n    metadata:\n      labels:\n        app: log-collector\n    spec:\n      containers:\n      - name: log-agent\n        image: alpine:3.18\n        command: [\"/bin/sh\", \"-c\", \"while true; do echo collecting logs; sleep 5; done\"]\n        resources:\n          requests:\n            cpu: \"50m\"\n            memory: \"32Mi\"\n          limits:\n            cpu: \"100m\"\n            memory: \"64Mi\"\n",
+  "starterYaml": "apiVersion: apps/v1\nkind: DaemonSet\nmetadata:\n  name: log-agent\n  namespace: default\n  labels:\n    app: log-agent\nspec:\n  selector:\n    matchLabels:\n      app: log-agent\n  template:\n    metadata:\n      labels:\n        app: log-agent\n    spec:\n      containers:\n      - name: log-agent\n        image: alpine:3.18\n        command: [\"/bin/sh\", \"-c\", \"while true; do echo collecting logs; sleep 5; done\"]\n        resources:\n          requests:\n            cpu: \"50m\"\n            memory: \"32Mi\"\n          limits:\n            cpu: \"100m\"\n            memory: \"64Mi\"\n",
   "objectives": [
-    { "id": "ds-exists",            "description": "DaemonSet `log-collector` exists in the `default` namespace" },
-    { "id": "desired-scheduled",    "description": "`desiredNumberScheduled` equals 2 (one per node)" },
-    { "id": "number-ready",         "description": "`numberReady` equals 2 (both pods Running and ready)" }
+    {
+      "id": "ds-exists",
+      "description": "DaemonSet `log-collector` exists in the `default` namespace"
+    },
+    {
+      "id": "desired-scheduled",
+      "description": "`desiredNumberScheduled` equals 2 (one per node)"
+    },
+    {
+      "id": "number-ready",
+      "description": "`numberReady` equals 2 (both pods Running and ready)"
+    }
   ],
   "hints": [
-    { "revealAfterMs": 60000,  "text": "The starter YAML is already correct — just apply it. A DaemonSet automatically places one pod on every schedulable node." },
-    { "revealAfterMs": 120000, "text": "After applying, run `kubectl get daemonset log-collector` and confirm `DESIRED` and `READY` both show 2." },
-    { "revealAfterMs": 180000, "text": "If a pod is missing from a node, check for taints on that node with `kubectl describe node <node-name>`. You may need a toleration to schedule on tainted nodes." }
+    {
+      "revealAfterMs": 60000,
+      "text": "The starter YAML is already correct \u2014 just apply it. A DaemonSet automatically places one pod on every schedulable node."
+    },
+    {
+      "revealAfterMs": 120000,
+      "text": "After applying, run `kubectl get daemonset log-collector` and confirm `DESIRED` and `READY` both show 2."
+    },
+    {
+      "revealAfterMs": 180000,
+      "text": "If a pod is missing from a node, check for taints on that node with `kubectl describe node <node-name>`. You may need a toleration to schedule on tainted nodes."
+    }
   ],
   "solution": "apiVersion: apps/v1\nkind: DaemonSet\nmetadata:\n  name: log-collector\n  namespace: default\n  labels:\n    app: log-collector\nspec:\n  selector:\n    matchLabels:\n      app: log-collector\n  template:\n    metadata:\n      labels:\n        app: log-collector\n    spec:\n      containers:\n      - name: log-agent\n        image: alpine:3.18\n        command: [\"/bin/sh\", \"-c\", \"while true; do echo collecting logs; sleep 5; done\"]\n        resources:\n          requests:\n            cpu: \"50m\"\n            memory: \"32Mi\"\n          limits:\n            cpu: \"100m\"\n            memory: \"64Mi\"\n"
 }
