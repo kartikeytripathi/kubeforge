@@ -95,6 +95,17 @@ A webapp for learning Kubernetes and Amazon EKS through hands-on labs. Every con
 
 ---
 
+## Upcoming
+
+| # | Feature | Description |
+|---|---|---|
+| [#9](https://github.com/kartikeytripathi/kubeforge/issues/9) | **K8s Knowledge Check** | Scenario-based MCQ quiz — Beginner / Intermediate / Advanced (CKA level), 20 questions per tier, detailed explanation on every answer, scorecard at end of each tier |
+| [#10](https://github.com/kartikeytripathi/kubeforge/issues/10) | **K8s Internals Mastery integration** | "Why this works →" footer links on every lab, new diagnostic lab type (identify the failing stage, not just fix the YAML), Phase E — Internals Track |
+| [#11](https://github.com/kartikeytripathi/kubeforge/issues/11) | **Next Lab button** | After all objectives pass, a button appears to jump directly to the next lab without going back to the curriculum |
+| [#12](https://github.com/kartikeytripathi/kubeforge/issues/12) | **Real Cluster Mode** | Opt-in toggle per lab — provisions an isolated vCluster per session, pipes a live `kubectl` terminal (xterm.js) into the lab UI, verifier queries the real cluster instead of the simulator |
+
+---
+
 ## Tech Stack
 
 | Layer | Choice |
