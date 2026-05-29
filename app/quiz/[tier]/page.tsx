@@ -33,5 +33,5 @@ export default async function QuizTierPage({ params }: { params: { tier: string 
   const questions = loadQuestions(tier);
   if (questions.length === 0) return notFound();
 
-  return <QuizClient tier={tier} questions={questions} />;
+  return <QuizClient tier={tier} questions={questions} userId={session.user.id!} />;
 }
