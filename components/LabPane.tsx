@@ -196,6 +196,7 @@ export function LabPane({ lab, verifier, hiddenSetupYaml, scenarioHtml, scenario
   const [applyError, setApplyError] = useState<string | null>(null);
   const [activeTab, setActiveTab]   = useState<PanelTab>("canvas");
   const [elapsed, setElapsed]       = useState(0);
+  const [mobilePanel, setMobilePanel] = useState<"scenario" | "editor" | "cluster">("editor");
 
   // Panel sizing
   const [leftWidth, setLeftWidth]     = useState(320);
@@ -347,15 +348,34 @@ export function LabPane({ lab, verifier, hiddenSetupYaml, scenarioHtml, scenario
         </button>
       </div>
 
+      {/* ── Mobile panel switcher ───────────────────────────────────────── */}
+      <div className="md:hidden flex shrink-0 border-b border-surface-600 bg-surface-800">
+        {(["scenario", "editor", "cluster"] as const).map((p) => (
+          <button
+            key={p}
+            onClick={() => setMobilePanel(p)}
+            className={`flex-1 py-2 text-xs font-medium capitalize transition-colors border-b-2 ${
+              mobilePanel === p
+                ? "border-teal-500 text-teal-400"
+                : "border-transparent text-gray-500 hover:text-gray-300"
+            }`}
+          >
+            {p}
+          </button>
+        ))}
+      </div>
+
       {/* ── Main three-column layout ─────────────────────────────────────── */}
       <div className="flex flex-1 overflow-hidden">
 
         {/* ── LEFT: Scenario ─────────────────────────────────────────────── */}
         {leftCollapsed ? (
-          <CollapsedStrip label="Scenario" side="left" onExpand={() => setLeftCollapsed(false)} />
+          <div className="hidden md:block">
+            <CollapsedStrip label="Scenario" side="left" onExpand={() => setLeftCollapsed(false)} />
+          </div>
         ) : (
           <div
-            className="flex shrink-0 flex-col overflow-hidden border-r border-surface-600 bg-surface-900"
+            className={`${mobilePanel === "scenario" ? "flex" : "hidden"} md:flex shrink-0 flex-col overflow-hidden border-r border-surface-600 bg-surface-900 w-full md:w-auto`}
             style={{ width: leftWidth }}
           >
             <PanelHeader
@@ -408,11 +428,13 @@ export function LabPane({ lab, verifier, hiddenSetupYaml, scenarioHtml, scenario
 
         {/* ── Drag handle: left / editor ──────────────────────────────────── */}
         {!leftCollapsed && (
-          <DragHandle onMouseDown={(e) => startDrag("left", e, leftWidth)} />
+          <div className="hidden md:block">
+            <DragHandle onMouseDown={(e) => startDrag("left", e, leftWidth)} />
+          </div>
         )}
 
         {/* ── CENTER: YAML Editor ─────────────────────────────────────────── */}
-        <div className="flex flex-1 flex-col overflow-hidden min-w-0">
+        <div className={`${mobilePanel === "editor" ? "flex" : "hidden"} md:flex flex-1 flex-col overflow-hidden min-w-0`}>
           <PanelHeader
             icon={<IconFile />}
             label={
@@ -452,15 +474,19 @@ export function LabPane({ lab, verifier, hiddenSetupYaml, scenarioHtml, scenario
 
         {/* ── Drag handle: editor / right ──────────────────────────────────── */}
         {!rightCollapsed && (
-          <DragHandle onMouseDown={(e) => startDrag("right", e, rightWidth)} />
+          <div className="hidden md:block">
+            <DragHandle onMouseDown={(e) => startDrag("right", e, rightWidth)} />
+          </div>
         )}
 
         {/* ── RIGHT: Cluster View / kubectl ───────────────────────────────── */}
         {rightCollapsed ? (
-          <CollapsedStrip label="Cluster" side="right" onExpand={() => setRightCollapsed(false)} />
+          <div className="hidden md:block">
+            <CollapsedStrip label="Cluster" side="right" onExpand={() => setRightCollapsed(false)} />
+          </div>
         ) : (
           <div
-            className="flex shrink-0 flex-col overflow-hidden border-l border-surface-600"
+            className={`${mobilePanel === "cluster" ? "flex" : "hidden"} md:flex shrink-0 flex-col overflow-hidden border-l border-surface-600 w-full md:w-auto`}
             style={{ width: rightWidth }}
           >
             <TabBar
