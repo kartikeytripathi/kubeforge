@@ -43,7 +43,7 @@ export default async function LessonPage({ params }: { params: { id: string } })
   const conceptHtml = await marked(mdBody, { gfm: true });
 
   return (
-    <div className="h-full overflow-hidden -m-6 flex">
+    <div className="h-full overflow-hidden -m-6 md:-m-6 flex">
       <LessonClient
         lab={lab}
         labId={id}
