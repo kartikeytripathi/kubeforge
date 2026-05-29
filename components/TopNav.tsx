@@ -14,6 +14,9 @@ export function TopNav() {
       </Link>
 
       <div className="flex items-center gap-4">
+        <Link href="/quiz" className="hidden sm:block text-sm text-gray-400 hover:text-white transition-colors">
+          Quiz
+        </Link>
         <EksToggle />
         <ThemeToggle />
         <AuthButton />

@@ -1,0 +1,302 @@
+[
+  {
+    "id": "im-01",
+    "tier": "intermediate",
+    "topic": "statefulsets",
+    "scenario": "A StatefulSet `mysql` has 3 replicas. You delete pod `mysql-1`. What is the name of the replacement pod and what storage does it get?",
+    "options": [
+      { "id": "a", "text": "`mysql-4` with a new PVC" },
+      { "id": "b", "text": "`mysql-1` with the same PVC it had before" },
+      { "id": "c", "text": "`mysql-1` with a new PVC" },
+      { "id": "d", "text": "A randomly named pod with the same PVC" }
+    ],
+    "correct": "b",
+    "explanation": "StatefulSets guarantee stable identity: the replacement pod gets the exact same name (`mysql-1`) and is reattached to the same PVC (`data-mysql-1`). The PVC is never deleted when a pod is deleted — it persists until explicitly removed. This is the core difference between StatefulSets and Deployments: stable network identity, stable storage, ordered creation and deletion.",
+    "wrongHint": "The correct answer is B. StatefulSets provide stable identity — same pod name, same PVC on restart. The PVC survives pod deletion."
+  },
+  {
+    "id": "im-02",
+    "tier": "intermediate",
+    "topic": "statefulsets",
+    "scenario": "You update a StatefulSet's container image. Unlike Deployments, pods are updated in what order?",
+    "options": [
+      { "id": "a", "text": "All pods updated simultaneously" },
+      { "id": "b", "text": "Reverse ordinal order — highest index first (N-1 down to 0)" },
+      { "id": "c", "text": "Ascending ordinal order — 0 first, then 1, then 2" },
+      { "id": "d", "text": "Random order determined by the scheduler" }
+    ],
+    "correct": "b",
+    "explanation": "StatefulSet rolling updates proceed in reverse ordinal order: pod with the highest index is updated first, then the next lower, down to pod 0. This means the primary (pod-0 in leader-follower setups) is updated last, minimising the risk of leader election disruption. Kubernetes waits for each pod to be Ready before proceeding to the next. You can also use `partition` to stage the rollout.",
+    "wrongHint": "The correct answer is B. StatefulSet updates go in reverse order (highest index first) to protect the primary/leader replica, which is typically pod-0."
+  },
+  {
+    "id": "im-03",
+    "tier": "intermediate",
+    "topic": "daemonsets",
+    "scenario": "You add a new node to the cluster. You have a DaemonSet for a logging agent. What happens automatically?",
+    "options": [
+      { "id": "a", "text": "Nothing — you must manually trigger the DaemonSet to schedule on the new node" },
+      { "id": "b", "text": "The DaemonSet controller schedules a pod on the new node automatically" },
+      { "id": "c", "text": "The DaemonSet is rescheduled across all nodes" },
+      { "id": "d", "text": "A new DaemonSet copy is created for the new node" }
+    ],
+    "correct": "b",
+    "explanation": "The DaemonSet controller watches node events. When a new node joins the cluster, the controller automatically creates a pod on it (subject to nodeSelector, tolerations, and affinity rules). This is the defining behaviour of DaemonSets — exactly one pod per node, always. Similarly, when a node is removed, its DaemonSet pod is garbage collected.",
+    "wrongHint": "The correct answer is B. DaemonSets automatically schedule one pod per node — new nodes get a pod immediately without manual intervention."
+  },
+  {
+    "id": "im-04",
+    "tier": "intermediate",
+    "topic": "daemonsets",
+    "scenario": "Your DaemonSet logging agent should run on every node including master/control-plane nodes, which have a `node-role.kubernetes.io/control-plane:NoSchedule` taint. What do you add to the DaemonSet spec?",
+    "options": [
+      { "id": "a", "text": "`nodeSelector: node-role.kubernetes.io/control-plane: ''`" },
+      { "id": "b", "text": "A toleration for the `node-role.kubernetes.io/control-plane` taint with effect `NoSchedule`" },
+      { "id": "c", "text": "`hostNetwork: true`" },
+      { "id": "d", "text": "`priorityClassName: system-cluster-critical`" }
+    ],
+    "correct": "b",
+    "explanation": "Taints repel pods that don't explicitly tolerate them. To schedule on a tainted node, add a matching toleration: `tolerations: [{key: node-role.kubernetes.io/control-plane, operator: Exists, effect: NoSchedule}]`. Without it, the DaemonSet pod will not be scheduled on the control-plane node even though DaemonSets bypass the normal scheduler for most purposes.",
+    "wrongHint": "The correct answer is B. Control-plane nodes have a taint that repels regular pods. You need a matching toleration in the DaemonSet pod spec."
+  },
+  {
+    "id": "im-05",
+    "tier": "intermediate",
+    "topic": "jobs",
+    "scenario": "A Job has `completions: 5` and `parallelism: 2`. How does Kubernetes execute it?",
+    "options": [
+      { "id": "a", "text": "5 pods run simultaneously" },
+      { "id": "b", "text": "2 pods run at a time; once each completes, a new one starts until 5 total have succeeded" },
+      { "id": "c", "text": "2 pods run; if either fails the Job fails immediately" },
+      { "id": "d", "text": "The Job runs once with 2 containers in a single pod" }
+    ],
+    "correct": "b",
+    "explanation": "`completions: 5` means 5 pods must succeed. `parallelism: 2` means at most 2 pods run concurrently. Kubernetes runs 2 pods; as each succeeds, a new one starts until 5 have succeeded in total. If a pod fails, it's retried (up to `backoffLimit`). This pattern is useful for parallel work queues — tune parallelism to control throughput.",
+    "wrongHint": "The correct answer is B. `completions` is the total target; `parallelism` caps how many run at once. They're independent settings."
+  },
+  {
+    "id": "im-06",
+    "tier": "intermediate",
+    "topic": "jobs",
+    "scenario": "A CronJob is scheduled for every hour but the previous run is still running when the next trigger fires. What is the default behaviour?",
+    "options": [
+      { "id": "a", "text": "The new job is skipped" },
+      { "id": "b", "text": "Both jobs run concurrently" },
+      { "id": "c", "text": "The previous job is killed and a new one starts" },
+      { "id": "d", "text": "The CronJob is disabled until the running job completes" }
+    ],
+    "correct": "b",
+    "explanation": "The default `concurrencyPolicy` is `Allow`, which means new Jobs are created regardless of whether previous ones are still running — they run concurrently. Set `concurrencyPolicy: Forbid` to skip the new run if a previous one is still active, or `Replace` to kill the old run and start the new one. For long-running jobs that must not overlap, `Forbid` is the safe choice.",
+    "wrongHint": "The correct answer is B. The default `concurrencyPolicy: Allow` permits concurrent runs. Use `Forbid` or `Replace` to change this."
+  },
+  {
+    "id": "im-07",
+    "tier": "intermediate",
+    "topic": "ingress",
+    "scenario": "You have two services: `frontend` (port 80) and `api` (port 8080). You want `example.com/` to route to `frontend` and `example.com/api` to route to `api`. What Kubernetes resource handles this?",
+    "options": [
+      { "id": "a", "text": "Two LoadBalancer services, one for each path" },
+      { "id": "b", "text": "An Ingress resource with path-based routing rules" },
+      { "id": "c", "text": "A NetworkPolicy with path-based rules" },
+      { "id": "d", "text": "A ConfigMap with an nginx configuration" }
+    ],
+    "correct": "b",
+    "explanation": "An Ingress resource defines HTTP/HTTPS routing rules — by host, by path, or both. A single Ingress can fan traffic to multiple Services. It requires an Ingress controller (nginx-ingress, AWS ALB controller, etc.) to be installed. Path-based routing: `- path: /api → service: api:8080`, `- path: / → service: frontend:80`. This avoids provisioning a separate load balancer per service.",
+    "wrongHint": "The correct answer is B. Ingress is the K8s resource for HTTP path/host-based routing to multiple backend services."
+  },
+  {
+    "id": "im-08",
+    "tier": "intermediate",
+    "topic": "rbac",
+    "scenario": "A pod needs to call the Kubernetes API to list pods in its namespace. What is the minimum set of resources you need to create?",
+    "options": [
+      { "id": "a", "text": "A ClusterRole with `pods: list` and a ClusterRoleBinding to the pod's service account" },
+      { "id": "b", "text": "A Role with `pods: list` in the namespace, a ServiceAccount, and a RoleBinding linking the two" },
+      { "id": "c", "text": "A ServiceAccount only — pods can read the API by default" },
+      { "id": "d", "text": "A Secret containing a kubeconfig file mounted into the pod" }
+    ],
+    "correct": "b",
+    "explanation": "Least-privilege RBAC for namespace-scoped access: (1) Create a ServiceAccount in the namespace. (2) Create a Role that grants `get/list` on `pods` in that namespace. (3) Create a RoleBinding that binds the Role to the ServiceAccount. Assign the ServiceAccount to the pod with `spec.serviceAccountName`. Using a ClusterRole+ClusterRoleBinding would grant access across ALL namespaces — unnecessarily broad.",
+    "wrongHint": "The correct answer is B. For namespace-scoped access, use Role+RoleBinding (not ClusterRole+ClusterRoleBinding). Always prefer least privilege."
+  },
+  {
+    "id": "im-09",
+    "tier": "intermediate",
+    "topic": "rbac",
+    "scenario": "A ServiceAccount `ci-bot` needs read access to pods and deployments across ALL namespaces. What is the right resource combination?",
+    "options": [
+      { "id": "a", "text": "A Role and RoleBinding in every namespace" },
+      { "id": "b", "text": "A ClusterRole with pod/deployment read permissions and a ClusterRoleBinding to `ci-bot`" },
+      { "id": "c", "text": "A ClusterRole and a RoleBinding in the `default` namespace" },
+      { "id": "d", "text": "Editing the default ClusterRole to add the permissions" }
+    ],
+    "correct": "b",
+    "explanation": "ClusterRole defines cluster-scoped or cross-namespace permissions. ClusterRoleBinding binds a ClusterRole to a subject (user, group, or ServiceAccount) at the cluster level, granting that permission across all namespaces. A ClusterRole bound with a RoleBinding (option C) only applies within the namespace where the RoleBinding exists — not cluster-wide.",
+    "wrongHint": "The correct answer is B. ClusterRole + ClusterRoleBinding = cluster-wide access. ClusterRole + RoleBinding = namespace-scoped access (common gotcha)."
+  },
+  {
+    "id": "im-10",
+    "tier": "intermediate",
+    "topic": "persistent-volumes",
+    "scenario": "A PVC is stuck in `Pending` state. The StorageClass is set to `WaitForFirstConsumer`. When will the PV be provisioned?",
+    "options": [
+      { "id": "a", "text": "Immediately when the PVC is created" },
+      { "id": "b", "text": "When a pod that uses the PVC is scheduled to a node" },
+      { "id": "c", "text": "When the PVC is manually bound by an admin" },
+      { "id": "d", "text": "After 5 minutes — it is a provisioning delay" }
+    ],
+    "correct": "b",
+    "explanation": "`volumeBindingMode: WaitForFirstConsumer` delays PV provisioning until a pod consuming the PVC is scheduled. This allows the storage provisioner to create the volume in the same availability zone as the node where the pod lands — critical for zone-local storage like AWS EBS or GCE PD. Without this, a volume might be created in us-east-1a while the pod is scheduled in us-east-1b, causing a mount failure.",
+    "wrongHint": "The correct answer is B. `WaitForFirstConsumer` is a topology-aware binding mode — the PV is only provisioned once a pod is scheduled, so it can be created in the right AZ."
+  },
+  {
+    "id": "im-11",
+    "tier": "intermediate",
+    "topic": "hpa",
+    "scenario": "An HPA is configured with `minReplicas: 2, maxReplicas: 10, targetCPUUtilizationPercentage: 70`. Current CPU is 140%. How many replicas will the HPA target?",
+    "options": [
+      { "id": "a", "text": "2 replicas" },
+      { "id": "b", "text": "4 replicas" },
+      { "id": "c", "text": "10 replicas" },
+      { "id": "d", "text": "The HPA does not scale — 140% exceeds the configured maximum" }
+    ],
+    "correct": "b",
+    "explanation": "HPA uses the formula: `desiredReplicas = ceil(currentReplicas × (currentMetric / targetMetric))`. With 2 current replicas and 140% CPU vs 70% target: `ceil(2 × (140/70)) = ceil(2 × 2) = 4`. The HPA scales to 4 replicas, which should bring average CPU down toward 70%. It respects the max (10) as a ceiling. Scale-up happens quickly; scale-down has a stabilization window to prevent thrashing.",
+    "wrongHint": "The correct answer is B. HPA formula: `ceil(currentReplicas × currentMetric/targetMetric)` = ceil(2 × 140/70) = ceil(4) = 4."
+  },
+  {
+    "id": "im-12",
+    "tier": "intermediate",
+    "topic": "network-policies",
+    "scenario": "By default, can pods in namespace `frontend` communicate with pods in namespace `backend`?",
+    "options": [
+      { "id": "a", "text": "No — namespaces isolate network traffic by default" },
+      { "id": "b", "text": "Yes — all pods can communicate with all other pods in the cluster by default" },
+      { "id": "c", "text": "Only if both namespaces have a NetworkPolicy allowing it" },
+      { "id": "d", "text": "Only within the same node" }
+    ],
+    "correct": "b",
+    "explanation": "Kubernetes has no network isolation by default. All pods can reach all other pods in the cluster regardless of namespace, as long as you know the IP or DNS name. Namespaces provide administrative isolation (RBAC, resource quotas) but NOT network isolation. To restrict traffic, you must explicitly create NetworkPolicy resources. A common approach: deny all ingress by default, then whitelist specific sources.",
+    "wrongHint": "The correct answer is B. Namespaces do NOT provide network isolation. All pods can reach all other pods until NetworkPolicies are applied."
+  },
+  {
+    "id": "im-13",
+    "tier": "intermediate",
+    "topic": "network-policies",
+    "scenario": "You apply a NetworkPolicy that selects all pods in namespace `backend` and specifies an empty `ingress: []`. What is the effect?",
+    "options": [
+      { "id": "a", "text": "All ingress traffic to backend pods is allowed — empty means no restrictions" },
+      { "id": "b", "text": "All ingress traffic to backend pods is denied — a NetworkPolicy with empty ingress rules blocks all incoming traffic" },
+      { "id": "c", "text": "The NetworkPolicy is invalid and ignored" },
+      { "id": "d", "text": "Only egress traffic is affected; ingress is unchanged" }
+    ],
+    "correct": "b",
+    "explanation": "Once a NetworkPolicy selects a pod, only traffic explicitly allowed by matching ingress rules is permitted. An empty `ingress: []` array means zero rules match — so all ingress is denied. This is the standard 'default deny' pattern: apply a policy with empty ingress to lock down a namespace, then add specific allow rules. Note: pods not selected by any NetworkPolicy are still fully open.",
+    "wrongHint": "The correct answer is B. Empty ingress rules = deny all. A NetworkPolicy only allows what is explicitly listed in its rules."
+  },
+  {
+    "id": "im-14",
+    "tier": "intermediate",
+    "topic": "taints-tolerations",
+    "scenario": "A node has taint `gpu=true:NoSchedule`. A pod has toleration `key: gpu, operator: Exists, effect: NoSchedule`. Will the pod be scheduled on that node?",
+    "options": [
+      { "id": "a", "text": "No — the toleration key must match and the value must match too" },
+      { "id": "b", "text": "Yes — `operator: Exists` matches any value for that key, so the toleration covers the taint" },
+      { "id": "c", "text": "No — the pod needs a nodeSelector pointing to that node" },
+      { "id": "d", "text": "Yes, but only if the pod is in the same namespace as the taint" }
+    ],
+    "correct": "b",
+    "explanation": "`operator: Exists` means 'this taint key exists, regardless of value'. It covers any value for the key `gpu`, so it tolerates `gpu=true:NoSchedule`, `gpu=false:NoSchedule`, or any other value. This is useful when the exact taint value may vary. `operator: Equal` requires both key AND value to match. Tolerations only remove scheduling barriers — they don't force the pod onto that node (use nodeSelector or affinity for that).",
+    "wrongHint": "The correct answer is B. `operator: Exists` matches any value for the given key — it's a wildcard on the value."
+  },
+  {
+    "id": "im-15",
+    "tier": "intermediate",
+    "topic": "rolling-updates",
+    "scenario": "A Deployment has `maxUnavailable: 0` and `maxSurge: 1` in its rolling update strategy. What does this guarantee?",
+    "options": [
+      { "id": "a", "text": "No more than 1 pod is unavailable at any point during the rollout" },
+      { "id": "b", "text": "Zero downtime — all old pods stay running until a new pod is Ready, with at most 1 extra pod above the desired count" },
+      { "id": "c", "text": "The rollout happens 1 pod at a time with all pods briefly unavailable" },
+      { "id": "d", "text": "The deployment pauses after every pod update for manual approval" }
+    ],
+    "correct": "b",
+    "explanation": "`maxUnavailable: 0` means zero old pods can be taken down until a replacement is Ready. `maxSurge: 1` allows one extra pod above the desired count to be created. Combined: the controller creates a new pod (surge), waits for it to become Ready, then terminates one old pod — guaranteeing zero downtime at the cost of temporarily using more resources. This is the safest rolling update strategy for production.",
+    "wrongHint": "The correct answer is B. `maxUnavailable: 0` is the zero-downtime guarantee. `maxSurge: 1` controls how many extra pods are created during the transition."
+  },
+  {
+    "id": "im-16",
+    "tier": "intermediate",
+    "topic": "storage",
+    "scenario": "A PVC has `accessModes: [ReadWriteOnce]`. Two pods on different nodes try to mount it simultaneously. What happens?",
+    "options": [
+      { "id": "a", "text": "Both pods mount it in read-only mode" },
+      { "id": "b", "text": "The second pod fails to mount — ReadWriteOnce only allows mounting by a single node at a time" },
+      { "id": "c", "text": "Both pods share the volume with automatic conflict resolution" },
+      { "id": "d", "text": "Kubernetes creates a copy of the PVC for the second pod" }
+    ],
+    "correct": "b",
+    "explanation": "`ReadWriteOnce (RWO)` means the volume can be mounted as read-write by a single node. If a second pod on a different node tries to mount the same PVC, the second pod will be stuck in `ContainerCreating` with a 'Multi-Attach error' event. To share a volume across multiple nodes, use `ReadWriteMany (RWX)` — supported by NFS, EFS, and some other storage backends, but not by block storage like AWS EBS.",
+    "wrongHint": "The correct answer is B. ReadWriteOnce is single-node. Multi-Attach errors are common in Deployments using EBS volumes — use StatefulSets or switch to EFS for RWX."
+  },
+  {
+    "id": "im-17",
+    "tier": "intermediate",
+    "topic": "rbac",
+    "scenario": "You run `kubectl auth can-i create pods --as system:serviceaccount:default:my-sa`. The output is `no`. Your pod using `my-sa` tries to create a pod via the K8s API. What happens?",
+    "options": [
+      { "id": "a", "text": "The API call succeeds — `can-i` is just advisory" },
+      { "id": "b", "text": "The API call returns a 403 Forbidden error" },
+      { "id": "c", "text": "The API call is silently dropped" },
+      { "id": "d", "text": "The pod is evicted for attempting an unauthorized operation" }
+    ],
+    "correct": "b",
+    "explanation": "`kubectl auth can-i` queries the same authorization layer (RBAC) that the API server uses — it's an accurate dry-run. A `no` result means the service account lacks the required verb/resource permission. The actual API call will receive HTTP 403 Forbidden with a message like 'pods is forbidden: User ... cannot create resource pods'. The pod is not evicted — it just gets an error response.",
+    "wrongHint": "The correct answer is B. `can-i` accurately reflects what the API server will do. A `no` answer means the real call gets 403 Forbidden."
+  },
+  {
+    "id": "im-18",
+    "tier": "intermediate",
+    "topic": "pod-lifecycle",
+    "scenario": "A pod has `terminationGracePeriodSeconds: 30`. You run `kubectl delete pod my-pod`. What is the exact sequence of events?",
+    "options": [
+      { "id": "a", "text": "Pod is immediately killed with SIGKILL" },
+      { "id": "b", "text": "SIGTERM is sent; after 30 seconds if still running, SIGKILL is sent" },
+      { "id": "c", "text": "Pod is removed from the cluster immediately; the container keeps running for 30 seconds" },
+      { "id": "d", "text": "SIGTERM is sent; Kubernetes waits indefinitely for the pod to exit" }
+    ],
+    "correct": "b",
+    "explanation": "Graceful termination sequence: (1) Pod is removed from Service endpoints. (2) SIGTERM is sent to the container's PID 1. (3) Kubernetes waits up to `terminationGracePeriodSeconds` (30s). (4) If still running, SIGKILL forces it. Your app should handle SIGTERM to flush connections, finish in-flight requests, and exit cleanly within the grace period. Use `kubectl delete pod --grace-period=0 --force` to skip the wait.",
+    "wrongHint": "The correct answer is B. SIGTERM → grace period → SIGKILL. The app has 30 seconds to shut down gracefully before being forcefully killed."
+  },
+  {
+    "id": "im-19",
+    "tier": "intermediate",
+    "topic": "hpa",
+    "scenario": "HPA is configured but pods are not scaling despite high CPU. `kubectl describe hpa` shows 'unable to get metrics'. What is the most likely root cause?",
+    "options": [
+      { "id": "a", "text": "The Deployment has `replicas` hardcoded in its manifest, overriding HPA" },
+      { "id": "b", "text": "The Metrics Server is not installed or is not functioning in the cluster" },
+      { "id": "c", "text": "HPA requires a custom metrics adapter for CPU scaling" },
+      { "id": "d", "text": "The pods do not have resource limits set" }
+    ],
+    "correct": "b",
+    "explanation": "HPA depends on the Kubernetes Metrics Server to collect CPU and memory metrics. If Metrics Server is not installed or is crashing, HPA cannot retrieve metrics and scaling stops. Check with `kubectl top pods` — if that also fails, Metrics Server is the issue. Install it with the official manifest or via your cluster's add-on system. On EKS, enable the `metrics-server` add-on.",
+    "wrongHint": "The correct answer is B. HPA uses the Metrics Server API. 'Unable to get metrics' is almost always a Metrics Server availability issue."
+  },
+  {
+    "id": "im-20",
+    "tier": "intermediate",
+    "topic": "ingress",
+    "scenario": "Your Ingress is configured correctly but traffic to `api.example.com` returns a 404 from the Ingress controller, not your app. What is the most likely issue?",
+    "options": [
+      { "id": "a", "text": "The backend Service is using ClusterIP instead of NodePort" },
+      { "id": "b", "text": "The Ingress host or path rule doesn't match the incoming request" },
+      { "id": "c", "text": "The pod labels don't match the Service selector" },
+      { "id": "d", "text": "TLS is not configured on the Ingress" }
+    ],
+    "correct": "b",
+    "explanation": "A 404 from the Ingress controller (not from your app) means no rule matched the request. Common causes: the `host` field is wrong or missing, the `path` doesn't match (check `pathType: Prefix` vs `Exact`), or the Ingress class annotation doesn't match the installed controller. Check with `kubectl describe ingress` to see the rules, and verify the Host header in the request matches the Ingress host exactly.",
+    "wrongHint": "The correct answer is B. A 404 from the controller means no rule matched — check the host/path config in the Ingress spec against the actual request."
+  }
+]
