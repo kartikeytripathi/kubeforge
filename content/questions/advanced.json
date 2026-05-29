@@ -1,0 +1,302 @@
+[
+  {
+    "id": "adv-01",
+    "tier": "advanced",
+    "topic": "etcd",
+    "scenario": "Your etcd cluster loses quorum (2 of 3 members down). The API server is returning 503 errors. After restoring the two failed members, they refuse to rejoin. What is the correct recovery procedure?",
+    "options": [
+      { "id": "a", "text": "Delete and recreate the etcd pods using `kubectl delete pod`" },
+      { "id": "b", "text": "Restore from an etcd snapshot using `etcdctl snapshot restore` on each member, then restart etcd with the restored data directory" },
+      { "id": "c", "text": "Run `etcdctl member remove` for the failed members then `etcdctl member add` to re-add them" },
+      { "id": "d", "text": "Reinstall kubeadm and re-run `kubeadm init`" }
+    ],
+    "correct": "b",
+    "explanation": "When etcd members have diverged or corrupted data and won't rejoin, the correct CKA-level recovery is: (1) Stop all etcd members. (2) On each member: `etcdctl snapshot restore <snapshot.db> --data-dir=<new-dir> --initial-cluster=... --initial-cluster-token=... --name=<member-name> --initial-advertise-peer-urls=...`. (3) Update etcd config to use the new data directory. (4) Restart all etcd members simultaneously. The `member remove/add` approach only works when the cluster still has quorum.",
+    "wrongHint": "The correct answer is B. When etcd cannot rejoin due to data divergence, snapshot restore is the authoritative recovery path. `kubectl delete pod` doesn't work on static pods and won't fix the data."
+  },
+  {
+    "id": "adv-02",
+    "tier": "advanced",
+    "topic": "etcd",
+    "scenario": "You need to take a backup of etcd before a cluster upgrade. Which command is correct, and what three flags are always required?",
+    "options": [
+      { "id": "a", "text": "`etcdctl snapshot save` with `--endpoints`, `--cacert`, and `--cert/--key` for mTLS authentication" },
+      { "id": "b", "text": "`kubectl backup etcd` with `--namespace=kube-system`" },
+      { "id": "c", "text": "`etcdctl backup` with only `--data-dir`" },
+      { "id": "d", "text": "`cp -r /var/lib/etcd /backup` while etcd is running" }
+    ],
+    "correct": "a",
+    "explanation": "`etcdctl snapshot save <file>` is the correct command. The three required flags for a TLS-secured cluster: `--endpoints=https://127.0.0.1:2379` (etcd listen address), `--cacert=/etc/kubernetes/pki/etcd/ca.crt`, and `--cert=/etc/kubernetes/pki/etcd/server.crt --key=/etc/kubernetes/pki/etcd/server.key`. Set `ETCDCTL_API=3` first. On kubeadm clusters, the certs are in `/etc/kubernetes/pki/etcd/`. Verify the backup: `etcdctl snapshot status <file>`.",
+    "wrongHint": "The correct answer is A. etcdctl v3 requires TLS auth flags. `kubectl backup etcd` does not exist. Copying `/var/lib/etcd` while running may produce inconsistent data."
+  },
+  {
+    "id": "adv-03",
+    "tier": "advanced",
+    "topic": "cluster-upgrade",
+    "scenario": "You are upgrading a kubeadm cluster from 1.28 to 1.29. What is the correct node upgrade order and why?",
+    "options": [
+      { "id": "a", "text": "Worker nodes first, then control plane — to avoid API server disruption" },
+      { "id": "b", "text": "Control plane first, then worker nodes — control plane components must be upgraded before kubelets" },
+      { "id": "c", "text": "All nodes simultaneously using `kubeadm upgrade apply --all`" },
+      { "id": "d", "text": "Order doesn't matter — kubeadm handles sequencing automatically" }
+    ],
+    "correct": "b",
+    "explanation": "Kubernetes supports skew policy: control plane components (API server, controller-manager, scheduler) must be at version N before kubelets can be at N. Sequence: (1) `kubeadm upgrade apply v1.29.x` on the first control plane. (2) Upgrade `kubectl` and `kubelet` on the control plane. (3) For each worker: `kubectl drain`, `kubeadm upgrade node`, upgrade kubelet, `kubectl uncordon`. Worker kubelets can be at N-2 relative to the API server, so rolling upgrades are safe.",
+    "wrongHint": "The correct answer is B. Control plane always upgrades first. The kubelet skew policy requires the API server to be at the target version before kubelets are upgraded."
+  },
+  {
+    "id": "adv-04",
+    "tier": "advanced",
+    "topic": "cluster-upgrade",
+    "scenario": "Before upgrading a worker node, you run `kubectl drain node-3 --ignore-daemonsets`. The command hangs because a pod is blocking eviction. What is the likely reason and fix?",
+    "options": [
+      { "id": "a", "text": "The node has a taint that prevents eviction — remove the taint first" },
+      { "id": "b", "text": "A PodDisruptionBudget is preventing the eviction because it would violate the minimum available replicas" },
+      { "id": "c", "text": "The kubelet on the node is unresponsive — restart kubelet" },
+      { "id": "d", "text": "Drain requires `--force` for all pods" }
+    ],
+    "correct": "b",
+    "explanation": "A PodDisruptionBudget (PDB) sets a minimum number of available pods for a workload. If draining the node would reduce available replicas below the PDB's `minAvailable`, the eviction API blocks the drain. Fix options: (1) Scale up the Deployment first so there's headroom. (2) Temporarily patch the PDB. (3) Use `--disable-eviction` to bypass PDBs (only in emergencies). The PDB is working as intended — it's protecting SLA. Check with `kubectl get pdb`.",
+    "wrongHint": "The correct answer is B. Drain hangs when a PDB blocks eviction — the most common drain issue in production. Check `kubectl get pdb` and `kubectl describe pdb`."
+  },
+  {
+    "id": "adv-05",
+    "tier": "advanced",
+    "topic": "network-policies",
+    "scenario": "You apply a NetworkPolicy that allows ingress to `app: api` pods only from pods with label `app: frontend`. A pod without any labels tries to reach `app: api`. What happens?",
+    "options": [
+      { "id": "a", "text": "The connection is allowed — unlabelled pods bypass NetworkPolicies" },
+      { "id": "b", "text": "The connection is blocked — the unlabelled pod doesn't match the ingress podSelector" },
+      { "id": "c", "text": "The connection is allowed if the pods are in the same namespace" },
+      { "id": "d", "text": "The connection is blocked only if the unlabelled pod has no service account" }
+    ],
+    "correct": "b",
+    "explanation": "NetworkPolicy `podSelector` in the `from` block matches only pods with the specified labels. A pod without `app: frontend` does NOT match — regardless of whether it has other labels or no labels at all. The API pod now only accepts traffic from `app: frontend` pods (and from other allowed sources if specified). Unlabelled pods are not special in any way — they simply don't match the selector.",
+    "wrongHint": "The correct answer is B. NetworkPolicy selectors require a positive match. An unlabelled pod doesn't match `app: frontend`, so its traffic is blocked."
+  },
+  {
+    "id": "adv-06",
+    "tier": "advanced",
+    "topic": "security-contexts",
+    "scenario": "A container is running as root (UID 0). You want to prevent it from writing to the root filesystem while still allowing writes to specific mounted volumes. What security context settings achieve this?",
+    "options": [
+      { "id": "a", "text": "`readOnlyRootFilesystem: true` in the container security context, with writable volume mounts for specific paths" },
+      { "id": "b", "text": "`runAsNonRoot: true` in the pod security context" },
+      { "id": "c", "text": "`allowPrivilegeEscalation: false` in the container security context" },
+      { "id": "d", "text": "`privileged: false` in the container security context" }
+    ],
+    "correct": "a",
+    "explanation": "`readOnlyRootFilesystem: true` mounts the container's root filesystem as read-only at the kernel level (via OCI spec). The container cannot write anywhere on its filesystem except to explicitly mounted volumes. Mount writable directories (logs, temp files, pid files) as `emptyDir` or PVC volumes. This is a CIS benchmark recommendation — it prevents attackers from modifying container binaries or dropping payloads on disk.",
+    "wrongHint": "The correct answer is A. `readOnlyRootFilesystem: true` is the specific setting that makes the root filesystem immutable while allowing volume writes."
+  },
+  {
+    "id": "adv-07",
+    "tier": "advanced",
+    "topic": "security-contexts",
+    "scenario": "A pod spec has `securityContext.runAsUser: 1000` at the pod level and `securityContext.runAsUser: 0` on a specific container. What UID does that container run as?",
+    "options": [
+      { "id": "a", "text": "1000 — pod-level settings always take precedence" },
+      { "id": "b", "text": "0 — container-level security context overrides the pod-level setting" },
+      { "id": "c", "text": "The container fails to start — conflicting UIDs are invalid" },
+      { "id": "d", "text": "The lowest UID (0) is always used for security reasons" }
+    ],
+    "correct": "b",
+    "explanation": "Container-level `securityContext` overrides pod-level `securityContext` for the same field. The pod-level acts as a default for containers that don't specify their own value. In this case, the container explicitly sets `runAsUser: 0`, overriding the pod-level `1000`. Note: if `runAsNonRoot: true` is set at the pod level and a container tries to run as UID 0, the container will fail with a validation error — `runAsNonRoot` takes precedence over `runAsUser` in that case.",
+    "wrongHint": "The correct answer is B. Container-level securityContext overrides pod-level for the same fields. Pod-level is just the default."
+  },
+  {
+    "id": "adv-08",
+    "tier": "advanced",
+    "topic": "admission-control",
+    "scenario": "You have a ValidatingWebhookConfiguration with `failurePolicy: Fail`. The webhook service is down. A user tries to create a new pod. What happens?",
+    "options": [
+      { "id": "a", "text": "The pod is created — webhooks are best-effort" },
+      { "id": "b", "text": "The pod creation fails with an error — the API server cannot reach the webhook and the failure policy denies the request" },
+      { "id": "c", "text": "The pod is created and the webhook is retried asynchronously" },
+      { "id": "d", "text": "Kubernetes automatically falls back to `failurePolicy: Ignore`" }
+    ],
+    "correct": "b",
+    "explanation": "`failurePolicy: Fail` means: if the webhook cannot be reached (timeout, connection refused, etc.), treat it as a denial. The API server returns an error to the client. This guarantees that your policy is always enforced — nothing slips through if the webhook is down. The trade-off: a broken webhook blocks the entire workload it covers. For production webhooks, run multiple replicas with a PodDisruptionBudget and set appropriate `timeoutSeconds`.",
+    "wrongHint": "The correct answer is B. `failurePolicy: Fail` treats webhook unavailability as a denial. This is the safe default but requires the webhook to be highly available."
+  },
+  {
+    "id": "adv-09",
+    "tier": "advanced",
+    "topic": "crds-operators",
+    "scenario": "You create a CRD for a custom resource `Database`. After applying the CRD, you create a `Database` object. Nothing happens to the actual database. Why?",
+    "options": [
+      { "id": "a", "text": "The CRD definition is missing the `spec.validation` section" },
+      { "id": "b", "text": "A CRD only defines the schema — an operator (controller) watching for Database objects and acting on them is required" },
+      { "id": "c", "text": "The Database object needs to be in the `kube-system` namespace to be actioned" },
+      { "id": "d", "text": "You need to create a ClusterRole allowing the API server to process the CRD" }
+    ],
+    "correct": "b",
+    "explanation": "A CRD is just a schema registration — it tells the API server 'this type exists and here's what fields are valid'. It does not add any business logic. To make something happen when a `Database` object is created/updated/deleted, you need a controller (operator) that watches for those events via the Kubernetes informer machinery and reconciles the actual state. The operator pattern: CRD (schema) + Controller (logic) = Operator.",
+    "wrongHint": "The correct answer is B. CRD = schema definition only. Nothing acts on the resource until you deploy a controller that watches and reconciles it."
+  },
+  {
+    "id": "adv-10",
+    "tier": "advanced",
+    "topic": "multi-container",
+    "scenario": "You have a legacy app that writes logs to `/var/log/app.log`. You want to ship those logs to a central system without modifying the app. What container pattern is appropriate?",
+    "options": [
+      { "id": "a", "text": "Init container that copies the log file before the app starts" },
+      { "id": "b", "text": "Sidecar container sharing a volume with the app, reading and forwarding the log file" },
+      { "id": "c", "text": "Ambassador container that proxies log writes through an HTTP endpoint" },
+      { "id": "d", "text": "Adapter container that transforms the log format before the app runs" }
+    ],
+    "correct": "b",
+    "explanation": "The sidecar pattern: both containers share an `emptyDir` volume mounted at `/var/log`. The app writes to the file; the sidecar (e.g. Fluent Bit, Filebeat) reads the file and ships it to the central log system. No changes to the app. Sidecars run alongside the main container for the pod's lifetime. Ambassador: for proxying outbound connections. Adapter: for transforming output format. Init: runs before the app and exits.",
+    "wrongHint": "The correct answer is B. Sidecar is the log-shipping pattern — shares a volume with the app and runs alongside it for its lifetime."
+  },
+  {
+    "id": "adv-11",
+    "tier": "advanced",
+    "topic": "troubleshooting",
+    "scenario": "Nodes show `NotReady`. `kubectl describe node` shows 'KubeletNotReady: container runtime not running'. You SSH into the node. What do you check and fix first?",
+    "options": [
+      { "id": "a", "text": "Restart the kube-proxy systemd service" },
+      { "id": "b", "text": "Check and restart the container runtime (containerd or dockerd) with `systemctl status containerd` and `systemctl restart containerd`" },
+      { "id": "c", "text": "Re-run `kubeadm join` on the node" },
+      { "id": "d", "text": "Delete and recreate the node object in the API server" }
+    ],
+    "correct": "b",
+    "explanation": "'Container runtime not running' means the kubelet's CRI (Container Runtime Interface) socket is unavailable — the runtime process (containerd, CRI-O) has crashed or is not running. Fix: `systemctl status containerd` to check the state, `journalctl -u containerd -n 50` for crash logs, `systemctl restart containerd` to recover. The kubelet will reconnect and the node will return to Ready within a minute. This is one of the most common CKA troubleshooting scenarios.",
+    "wrongHint": "The correct answer is B. 'Container runtime not running' directly points to containerd/CRI-O. Check and restart the container runtime via systemctl."
+  },
+  {
+    "id": "adv-12",
+    "tier": "advanced",
+    "topic": "troubleshooting",
+    "scenario": "A pod is stuck in `ContainerCreating`. `kubectl describe pod` shows event: 'MountVolume.SetUp failed: mount failed: exit status 32'. What is the most likely cause?",
+    "options": [
+      { "id": "a", "text": "The container image cannot be pulled" },
+      { "id": "b", "text": "The PVC's underlying PV cannot be mounted — likely a zone mismatch, missing driver, or volume already attached to another node" },
+      { "id": "c", "text": "The pod's resource requests exceed node capacity" },
+      { "id": "d", "text": "A network policy is blocking volume mount traffic" }
+    ],
+    "correct": "b",
+    "explanation": "Mount failure (exit 32) is a volume attachment/mount error at the OS level. Common causes: (1) AZ mismatch — EBS/GCE PD volume in us-east-1a, pod scheduled to us-east-1b. (2) Volume still attached to another node (multi-attach). (3) CSI driver not installed or crashing. (4) Filesystem corruption requiring `fsck`. Check the PV and PVC status, the node's zone labels, and the CSI driver pods in `kube-system`. On EKS, this is frequently an EBS CSI driver issue.",
+    "wrongHint": "The correct answer is B. Mount failure exit 32 = OS-level volume mount error. Check for zone mismatch, multi-attach, or missing CSI driver."
+  },
+  {
+    "id": "adv-13",
+    "tier": "advanced",
+    "topic": "eks-irsa",
+    "scenario": "A pod in EKS needs to call the S3 API. The pod uses a ServiceAccount with an IRSA annotation. The pod receives a 403 AccessDenied from AWS. The IAM role exists and has S3 permissions. What should you check?",
+    "options": [
+      { "id": "a", "text": "Whether the EKS cluster has internet access to reach the S3 endpoint" },
+      { "id": "b", "text": "Whether the IAM role's trust policy includes the correct OIDC provider and matches the ServiceAccount namespace and name" },
+      { "id": "c", "text": "Whether the pod has `hostNetwork: true` for AWS API access" },
+      { "id": "d", "text": "Whether the node instance profile has S3 permissions" }
+    ],
+    "correct": "b",
+    "explanation": "IRSA (IAM Roles for Service Accounts) works via OIDC federation. The IAM role's trust policy must: (1) Trust the cluster's OIDC provider ARN. (2) Include a condition matching the exact ServiceAccount: `system:serviceaccount:<namespace>:<sa-name>`. A 403 with a valid role usually means the trust policy condition doesn't match — wrong namespace, wrong SA name, or the OIDC provider isn't registered in IAM. Check with: `aws iam get-role --role-name <role>` and inspect the trust relationship.",
+    "wrongHint": "The correct answer is B. IRSA 403s are almost always a trust policy issue — wrong OIDC condition, wrong namespace, or wrong SA name in the StringEquals condition."
+  },
+  {
+    "id": "adv-14",
+    "tier": "advanced",
+    "topic": "eks-karpenter",
+    "scenario": "Karpenter is provisioning new nodes but pods remain Pending for 3+ minutes. The Karpenter controller logs show 'launched instance'. What is the most likely cause of the continued Pending state?",
+    "options": [
+      { "id": "a", "text": "The IAM role for Karpenter doesn't have EC2 permissions" },
+      { "id": "b", "text": "The node is provisioned but the kubelet hasn't joined the cluster yet, or the pod has a tolerations/affinity constraint that prevents scheduling to the new node" },
+      { "id": "c", "text": "Karpenter only provisions nodes once per minute" },
+      { "id": "d", "text": "The pod requires a GPU but the NodePool only has CPU instances" }
+    ],
+    "correct": "b",
+    "explanation": "If Karpenter shows 'launched instance' but pods stay Pending: (1) Node bootstrap is slow — the kubelet needs 1-3 minutes to join, install CNI, and become Ready. This is normal. (2) The pod has a nodeSelector, affinity, or toleration that the new node doesn't satisfy — Karpenter provisioned a node but the pod can't land on it. Check `kubectl describe pod` for scheduling events after the node is Ready. Also verify the NodePool's instance types match the pod's requirements.",
+    "wrongHint": "The correct answer is B. 'Launched instance' means Karpenter did its job. The remaining delay is either normal bootstrap time or a scheduling constraint preventing the pod from landing on the new node."
+  },
+  {
+    "id": "adv-15",
+    "tier": "advanced",
+    "topic": "security-contexts",
+    "scenario": "A container needs to bind to port 80 (privileged port) but must NOT run as root. What is the correct solution?",
+    "options": [
+      { "id": "a", "text": "Set `privileged: true` in the container security context" },
+      { "id": "b", "text": "Add `NET_BIND_SERVICE` to `securityContext.capabilities.add` and set `runAsUser` to a non-zero UID" },
+      { "id": "c", "text": "Run as root and set `runAsNonRoot: false`" },
+      { "id": "d", "text": "Use a Service with `targetPort: 80` to map traffic from a high port" }
+    ],
+    "correct": "b",
+    "explanation": "Linux capabilities allow fine-grained privilege grants without full root. `NET_BIND_SERVICE` specifically allows a process to bind to ports below 1024. Combined with `runAsUser: 1000` (non-root), this gives the minimum privilege needed. The security context: `capabilities: {add: [NET_BIND_SERVICE]}, runAsUser: 1000, runAsNonRoot: true`. Drop all other capabilities with `capabilities: {drop: [ALL], add: [NET_BIND_SERVICE]}` for defense in depth.",
+    "wrongHint": "The correct answer is B. `NET_BIND_SERVICE` capability allows binding to privileged ports without running as root. This is the principle of least privilege applied to capabilities."
+  },
+  {
+    "id": "adv-16",
+    "tier": "advanced",
+    "topic": "cluster-admin",
+    "scenario": "The API server is returning 503 errors but etcd is healthy. What should you check on the control plane node?",
+    "options": [
+      { "id": "a", "text": "Check if the node has disk pressure — full disk causes API server OOM" },
+      { "id": "b", "text": "Check static pod manifests in `/etc/kubernetes/manifests/` and `kube-apiserver` pod logs via `crictl logs`" },
+      { "id": "c", "text": "Restart all pods in the `kube-system` namespace" },
+      { "id": "d", "text": "Re-run `kubeadm init` to regenerate certificates" }
+    ],
+    "correct": "b",
+    "explanation": "API server is a static pod managed by kubelet, not by the API server itself. You can't use kubectl when the API server is down. Diagnostics: (1) `ls /etc/kubernetes/manifests/kube-apiserver.yaml` — check the manifest is present and valid. (2) `crictl ps -a` — see if the apiserver container is running or crash-looping. (3) `crictl logs <container-id>` — inspect startup errors (cert issues, etcd connection, port conflicts). (4) `journalctl -u kubelet -n 100` — kubelet logs for why the static pod isn't starting.",
+    "wrongHint": "The correct answer is B. API server is a static pod. When kubectl doesn't work, use `crictl` and check the manifest in `/etc/kubernetes/manifests/`."
+  },
+  {
+    "id": "adv-17",
+    "tier": "advanced",
+    "topic": "rbac",
+    "scenario": "You need to allow a CI pipeline to only update the `image` field of Deployments in namespace `prod`, not full edit access. Can standard Kubernetes RBAC do this?",
+    "options": [
+      { "id": "a", "text": "Yes — create a Role with `verbs: [patch]` and `resourceNames` listing specific Deployments" },
+      { "id": "b", "text": "No — RBAC controls access at the resource level (verbs + resource types), not at the field level. Field-level restriction requires an admission webhook or OPA/Kyverno" },
+      { "id": "c", "text": "Yes — use `fieldSelectors` in the Role to restrict which fields can be modified" },
+      { "id": "d", "text": "Yes — `verbs: [patch]` with `subresources: [image]` restricts to image-only updates" }
+    ],
+    "correct": "b",
+    "explanation": "Kubernetes RBAC is coarse-grained: it operates on resource types and verbs, not on individual fields within a resource. You can allow or deny `patch` on `deployments`, but you cannot restrict it to only the image field. To enforce field-level restrictions you need an admission webhook (ValidatingWebhookConfiguration that rejects patches touching anything other than the image field) or a policy engine like OPA Gatekeeper or Kyverno. This is a common CKA/real-world gap.",
+    "wrongHint": "The correct answer is B. RBAC has no field-level granularity — it's resource + verb only. Field restrictions require admission webhooks or policy engines."
+  },
+  {
+    "id": "adv-18",
+    "tier": "advanced",
+    "topic": "troubleshooting",
+    "scenario": "DNS resolution is failing for service names inside pods. `nslookup kubernetes.default` times out. CoreDNS pods are Running. What should you investigate?",
+    "options": [
+      { "id": "a", "text": "The kubelet's `clusterDNS` configuration — if it points to the wrong CoreDNS Service IP, pods won't find DNS" },
+      { "id": "b", "text": "Restart all pods in the cluster to pick up new DNS settings" },
+      { "id": "c", "text": "Delete the CoreDNS pods to force a restart" },
+      { "id": "d", "text": "CoreDNS pods running means DNS is fine — check the application code instead" }
+    ],
+    "correct": "a",
+    "explanation": "DNS failure despite running CoreDNS pods suggests the pods aren't actually reaching CoreDNS. Check: (1) `kubectl get svc kube-dns -n kube-system` — note the ClusterIP. (2) `cat /etc/resolv.conf` inside a failing pod — the `nameserver` should match the kube-dns ClusterIP. (3) Kubelet's `--cluster-dns` flag (or `clusterDNS` in kubelet config) — if this is wrong, all pods get the wrong nameserver. (4) NetworkPolicy blocking UDP 53 to CoreDNS. (5) CoreDNS logs: `kubectl logs -n kube-system -l k8s-app=kube-dns`.",
+    "wrongHint": "The correct answer is A. Running CoreDNS pods don't guarantee pods can reach them. Check the kubelet clusterDNS config, the kube-dns Service IP, and `/etc/resolv.conf` inside a failing pod."
+  },
+  {
+    "id": "adv-19",
+    "tier": "advanced",
+    "topic": "multi-container",
+    "scenario": "You need a container that transforms your application's prometheus metrics from an incompatible format before they're scraped. It runs in the same pod. Which pattern is this and what makes it distinct?",
+    "options": [
+      { "id": "a", "text": "Sidecar — runs alongside the app and augments its functionality" },
+      { "id": "b", "text": "Adapter — standardises the app's output interface for external consumers without the app knowing" },
+      { "id": "c", "text": "Ambassador — proxies outbound traffic on behalf of the app" },
+      { "id": "d", "text": "Init container — transforms data before the app starts" }
+    ],
+    "correct": "b",
+    "explanation": "The Adapter pattern: a container that translates the app's non-standard output into a standard format for external consumers. The app doesn't change — the adapter sits in front of its output. Classic use case: an app exposes metrics in a proprietary format; the adapter container transforms them to Prometheus exposition format and exposes `/metrics`. The scraper only talks to the adapter. Contrast with Sidecar (adds new capability) and Ambassador (proxies outbound connections).",
+    "wrongHint": "The correct answer is B. Adapter = translate output format. Sidecar = add capability. Ambassador = proxy outbound traffic. All run in the same pod but serve different purposes."
+  },
+  {
+    "id": "adv-20",
+    "tier": "advanced",
+    "topic": "eks-irsa",
+    "scenario": "You're migrating from IRSA to EKS Pod Identity. What is the key operational difference in how credentials are delivered to the pod?",
+    "options": [
+      { "id": "a", "text": "IRSA uses a projected service account token; Pod Identity uses an agent DaemonSet that delivers credentials via a local socket" },
+      { "id": "b", "text": "IRSA requires node IAM role changes; Pod Identity does not" },
+      { "id": "c", "text": "Pod Identity uses Secrets to store AWS credentials; IRSA uses environment variables" },
+      { "id": "d", "text": "They are functionally identical — Pod Identity is just a newer name for IRSA" }
+    ],
+    "correct": "a",
+    "explanation": "IRSA: kubelet injects a projected OIDC token into the pod as a volume; the AWS SDK exchanges it with STS via `AssumeRoleWithWebIdentity`. Pod Identity: a DaemonSet agent runs on each node; pods call the agent via a local socket (`169.254.170.23:80`); the agent handles STS calls and returns temporary credentials. Pod Identity advantages: no need to configure an OIDC provider in IAM, easier to use across accounts, and the agent handles credential refresh. Both require a Pod Identity Association (not IRSA annotation) in the new model.",
+    "wrongHint": "The correct answer is A. The fundamental difference is the delivery mechanism: IRSA = projected token + STS exchange in the SDK; Pod Identity = local agent socket that handles the STS exchange for the pod."
+  }
+]

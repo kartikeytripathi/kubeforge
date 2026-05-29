@@ -1,0 +1,302 @@
+[
+  {
+    "id": "bg-01",
+    "tier": "beginner",
+    "topic": "pod-lifecycle",
+    "scenario": "Your pod status shows `CrashLoopBackOff`. You run `kubectl logs my-pod` and see 'exec: no such file or directory'. What is the most likely cause?",
+    "options": [
+      { "id": "a", "text": "The container image cannot be pulled from the registry" },
+      { "id": "b", "text": "The command specified in the pod spec does not exist inside the container image" },
+      { "id": "c", "text": "The pod has insufficient CPU resources to start" },
+      { "id": "d", "text": "A liveness probe is killing the container before it starts" }
+    ],
+    "correct": "b",
+    "explanation": "CrashLoopBackOff with 'exec: no such file or directory' means the entrypoint command defined in `spec.containers[].command` (or the image's CMD) doesn't exist in the container's filesystem. Kubernetes starts the container, the process immediately exits with a non-zero code, and after a few retries the backoff timer kicks in. Fix: check the image contents with `docker run --rm <image> ls /bin` or correct the command path in the pod spec.",
+    "wrongHint": "The correct answer is B. 'exec: no such file or directory' specifically refers to the binary the container is trying to run — it exists in the spec but not in the image."
+  },
+  {
+    "id": "bg-02",
+    "tier": "beginner",
+    "topic": "pod-lifecycle",
+    "scenario": "A pod has `restartPolicy: Never` and its container exits with code 0. What phase will the pod be in?",
+    "options": [
+      { "id": "a", "text": "Running" },
+      { "id": "b", "text": "Pending" },
+      { "id": "c", "text": "Succeeded" },
+      { "id": "d", "text": "Failed" }
+    ],
+    "correct": "c",
+    "explanation": "When a container exits with code 0 (success) and `restartPolicy: Never`, Kubernetes marks the pod as `Succeeded`. The pod is not restarted and its logs remain available. This is the expected behavior for one-off Jobs or batch workloads. If the exit code were non-zero, the phase would be `Failed`.",
+    "wrongHint": "The correct answer is C. Exit code 0 = success, so Kubernetes marks the pod Succeeded. It only fails if the exit code is non-zero."
+  },
+  {
+    "id": "bg-03",
+    "tier": "beginner",
+    "topic": "pod-lifecycle",
+    "scenario": "You apply a pod manifest but `kubectl get pod my-pod` shows status `Pending` for several minutes. No events mention scheduling. What should you check first?",
+    "options": [
+      { "id": "a", "text": "Whether the container image exists in the registry" },
+      { "id": "b", "text": "Whether a node has enough allocatable CPU and memory to schedule the pod" },
+      { "id": "c", "text": "Whether the pod's liveness probe is configured correctly" },
+      { "id": "d", "text": "Whether the pod's service account exists" }
+    ],
+    "correct": "b",
+    "explanation": "A pod stuck in `Pending` with no scheduling events almost always means the scheduler can't find a node that satisfies the pod's resource requests. Run `kubectl describe pod my-pod` and look at the Events section — you'll typically see '0/N nodes are available: N Insufficient cpu'. Check node allocatable capacity with `kubectl describe nodes` and compare against the pod's `resources.requests`.",
+    "wrongHint": "The correct answer is B. `Pending` with no scheduling events points to a scheduling failure, most commonly insufficient resources on all nodes."
+  },
+  {
+    "id": "bg-04",
+    "tier": "beginner",
+    "topic": "deployments",
+    "scenario": "You update a Deployment's container image. During the rollout, you notice two ReplicaSets exist. Why?",
+    "options": [
+      { "id": "a", "text": "Kubernetes created a backup ReplicaSet in case the rollout fails" },
+      { "id": "b", "text": "The old ReplicaSet is scaled down gradually while the new one is scaled up — this is a rolling update" },
+      { "id": "c", "text": "The Deployment controller created a duplicate by mistake" },
+      { "id": "d", "text": "Two ReplicaSets are always kept — one for canary traffic" }
+    ],
+    "correct": "b",
+    "explanation": "A Deployment's default strategy is `RollingUpdate`. When you change the pod template (e.g. update the image), the controller creates a new ReplicaSet for the new version and gradually scales it up while scaling down the old ReplicaSet. Both exist simultaneously during the transition. Once the rollout completes the old RS is kept at 0 replicas for rollback purposes (`kubectl rollout undo`).",
+    "wrongHint": "The correct answer is B. Two ReplicaSets during a Deployment update is the expected rolling update behavior, not an error."
+  },
+  {
+    "id": "bg-05",
+    "tier": "beginner",
+    "topic": "deployments",
+    "scenario": "A Deployment rollout is stuck. `kubectl rollout status deployment/api` hangs. What command lets you immediately revert to the previous working version?",
+    "options": [
+      { "id": "a", "text": "`kubectl delete deployment api && kubectl apply -f api.yaml`" },
+      { "id": "b", "text": "`kubectl rollout undo deployment/api`" },
+      { "id": "c", "text": "`kubectl scale deployment api --replicas=0`" },
+      { "id": "d", "text": "`kubectl restart deployment/api`" }
+    ],
+    "correct": "b",
+    "explanation": "`kubectl rollout undo deployment/api` reverts the Deployment to the previous ReplicaSet, which Kubernetes kept at 0 replicas for exactly this reason. It's instant and does not cause downtime — the old RS is scaled back up while the new one is scaled down. You can also target a specific revision with `--to-revision=N`.",
+    "wrongHint": "The correct answer is B. `kubectl rollout undo` is the purpose-built command for this. Deleting the Deployment causes downtime and loses the rollout history."
+  },
+  {
+    "id": "bg-06",
+    "tier": "beginner",
+    "topic": "services",
+    "scenario": "You have a pod with label `app: backend` running in namespace `default`. A Service with `selector: app: backend` exists. Your frontend pod can't reach it by hostname. What is the correct DNS name to use?",
+    "options": [
+      { "id": "a", "text": "`backend`" },
+      { "id": "b", "text": "`backend.default`" },
+      { "id": "c", "text": "`backend.default.svc.cluster.local`" },
+      { "id": "d", "text": "`default/backend`" }
+    ],
+    "correct": "c",
+    "explanation": "Kubernetes DNS assigns every Service the FQDN `<service-name>.<namespace>.svc.cluster.local`. Within the same namespace you can use just the service name (`backend`), but the full form always works. The `.svc.cluster.local` suffix is the cluster domain. If the frontend is in a different namespace it must use at least `backend.default` or the full FQDN.",
+    "wrongHint": "The correct answer is C. The full FQDN always works regardless of which namespace the caller is in. Short forms only work within the same namespace."
+  },
+  {
+    "id": "bg-07",
+    "tier": "beginner",
+    "topic": "services",
+    "scenario": "You need to expose a Deployment externally so internet users can reach it. Which Service type should you use on a managed cloud cluster (EKS, GKE, AKS)?",
+    "options": [
+      { "id": "a", "text": "ClusterIP" },
+      { "id": "b", "text": "NodePort" },
+      { "id": "c", "text": "LoadBalancer" },
+      { "id": "d", "text": "ExternalName" }
+    ],
+    "correct": "c",
+    "explanation": "`LoadBalancer` tells the cloud provider's controller to provision an external load balancer (AWS NLB/CLB, GCP Load Balancer, etc.) with a public IP that forwards traffic to your pods. `ClusterIP` is internal-only. `NodePort` exposes a port on every node IP but is rarely used directly in production. `ExternalName` is for aliasing external DNS names, not for exposing workloads.",
+    "wrongHint": "The correct answer is C. On managed cloud clusters, `type: LoadBalancer` triggers automatic provisioning of a cloud load balancer with a public endpoint."
+  },
+  {
+    "id": "bg-08",
+    "tier": "beginner",
+    "topic": "configmaps-secrets",
+    "scenario": "You store a database password in a Secret and mount it as an environment variable. A developer rotates the Secret value. Will the running pod automatically see the new password?",
+    "options": [
+      { "id": "a", "text": "Yes, environment variables from Secrets are updated live" },
+      { "id": "b", "text": "No, environment variables are injected at pod start and do not update — the pod must be restarted" },
+      { "id": "c", "text": "Yes, but only if the pod has `restartPolicy: Always`" },
+      { "id": "d", "text": "No, Secrets are immutable and cannot be changed after creation" }
+    ],
+    "correct": "b",
+    "explanation": "Environment variables sourced from Secrets (via `env[].valueFrom.secretKeyRef`) are injected at pod creation time and baked into the process environment. They do not change while the pod is running. To pick up the new value the pod must be restarted. Volumes mounted from Secrets behave differently — kubelet periodically syncs them, so file-based secrets update without a restart (with a short delay).",
+    "wrongHint": "The correct answer is B. `env` from Secrets is static — set at start, never updated. Only volume-mounted Secrets are synced live."
+  },
+  {
+    "id": "bg-09",
+    "tier": "beginner",
+    "topic": "configmaps-secrets",
+    "scenario": "You need to pass 10 configuration values to a pod. Injecting them one by one with `env` is tedious. What is the cleaner approach?",
+    "options": [
+      { "id": "a", "text": "Use `envFrom` with a ConfigMap reference to import all keys as environment variables at once" },
+      { "id": "b", "text": "Bake the configuration into the container image" },
+      { "id": "c", "text": "Pass them as command-line arguments in `spec.containers[].args`" },
+      { "id": "d", "text": "Use init containers to write the values to a shared volume" }
+    ],
+    "correct": "a",
+    "explanation": "`envFrom` with `configMapRef` imports every key in a ConfigMap as a separate environment variable in one declaration. Example: `envFrom: [{configMapRef: {name: app-config}}]`. This is cleaner than listing 10 `env` entries individually. The same works with `secretRef` for Secrets. Keys become env var names; values become env var values.",
+    "wrongHint": "The correct answer is A. `envFrom` bulk-imports all ConfigMap keys as environment variables — no need to list them individually."
+  },
+  {
+    "id": "bg-10",
+    "tier": "beginner",
+    "topic": "namespaces",
+    "scenario": "Your team deploys to namespace `staging`. A new engineer accidentally runs `kubectl delete pod --all` without specifying a namespace. What happens?",
+    "options": [
+      { "id": "a", "text": "All pods in all namespaces are deleted" },
+      { "id": "b", "text": "All pods in the `default` namespace are deleted" },
+      { "id": "c", "text": "The command fails because `--all` requires a namespace flag" },
+      { "id": "d", "text": "All pods in the `staging` namespace are deleted because kubectl uses the current context namespace" }
+    ],
+    "correct": "b",
+    "explanation": "Without `-n <namespace>`, kubectl defaults to the `default` namespace. So `kubectl delete pod --all` only deletes pods in `default`, not in `staging` or any other namespace. To delete across all namespaces you'd need `--all-namespaces` (or `-A`). This is a common footgun — always verify your current context namespace with `kubectl config get-contexts`.",
+    "wrongHint": "The correct answer is B. kubectl targets the `default` namespace when no `-n` flag is given, not all namespaces and not the 'staging' namespace."
+  },
+  {
+    "id": "bg-11",
+    "tier": "beginner",
+    "topic": "namespaces",
+    "scenario": "You want `kubectl` to always target the `staging` namespace without typing `-n staging` every time. What is the correct command?",
+    "options": [
+      { "id": "a", "text": "`kubectl set namespace staging`" },
+      { "id": "b", "text": "`kubectl config set-context --current --namespace=staging`" },
+      { "id": "c", "text": "`kubectl use namespace staging`" },
+      { "id": "d", "text": "`kubectl namespace staging --default`" }
+    ],
+    "correct": "b",
+    "explanation": "`kubectl config set-context --current --namespace=staging` patches the active context in your kubeconfig to set `staging` as the default namespace for all subsequent commands. Verify with `kubectl config view --minify | grep namespace`. You can also use `kubens staging` if you have the `kubectx` tool installed.",
+    "wrongHint": "The correct answer is B. `kubectl config set-context --current --namespace=<ns>` is the standard way to change the default namespace for the current context."
+  },
+  {
+    "id": "bg-12",
+    "tier": "beginner",
+    "topic": "resource-limits",
+    "scenario": "A pod's container has `resources.limits.memory: 256Mi` but the application allocates 400Mi at peak. What happens?",
+    "options": [
+      { "id": "a", "text": "The container is throttled and slows down" },
+      { "id": "b", "text": "The container is OOMKilled and restarted" },
+      { "id": "c", "text": "Kubernetes migrates the pod to a node with more memory" },
+      { "id": "d", "text": "Nothing — memory limits are advisory only" }
+    ],
+    "correct": "b",
+    "explanation": "Memory limits are enforced by the Linux kernel's OOM killer via cgroups. When a container exceeds its memory limit the kernel kills it with signal SIGKILL (OOM). Kubernetes then records `OOMKilled` as the termination reason and restarts the container (if `restartPolicy` allows). Unlike CPU which is throttled, memory cannot be throttled — it's a hard limit. Fix: increase the limit or reduce the application's memory footprint.",
+    "wrongHint": "The correct answer is B. CPU over-limit → throttling. Memory over-limit → OOMKilled. There is no throttling for memory."
+  },
+  {
+    "id": "bg-13",
+    "tier": "beginner",
+    "topic": "resource-limits",
+    "scenario": "You set `resources.requests.cpu: 500m` on a container. What does this guarantee?",
+    "options": [
+      { "id": "a", "text": "The container will always use exactly 500m CPU" },
+      { "id": "b", "text": "The node will reserve 500m CPU for scheduling purposes; the container gets at least that share when under contention" },
+      { "id": "c", "text": "The container cannot use more than 500m CPU" },
+      { "id": "d", "text": "The pod will only be scheduled on nodes with at least 500m free CPU" }
+    ],
+    "correct": "b",
+    "explanation": "CPU requests serve two purposes: (1) the scheduler uses them to decide which node to place the pod on — it only picks nodes with enough allocatable CPU. (2) At runtime, requests set the relative CPU share weight under contention. The container can burst above its request if the node has spare capacity. To cap usage, set `limits.cpu`. Requests alone do not cap; they only guarantee a minimum share.",
+    "wrongHint": "The correct answer is B. Requests affect scheduling placement and define the minimum CPU share, but do not cap usage — that's what limits are for."
+  },
+  {
+    "id": "bg-14",
+    "tier": "beginner",
+    "topic": "health-checks",
+    "scenario": "A pod's readiness probe keeps failing even though the application is running fine. What is the effect on traffic?",
+    "options": [
+      { "id": "a", "text": "The pod is restarted" },
+      { "id": "b", "text": "The pod is removed from Service endpoints and receives no traffic, but keeps running" },
+      { "id": "c", "text": "The pod is evicted from the node" },
+      { "id": "d", "text": "Kubernetes scales up a replacement pod" }
+    ],
+    "correct": "b",
+    "explanation": "A failing readiness probe marks the pod as Not Ready. Kubernetes removes it from the Service's endpoint list so no new traffic is routed to it. The pod is NOT restarted — that's the liveness probe's job. The pod stays running and will be re-added to endpoints once the readiness probe passes again. This is the mechanism that prevents traffic from reaching pods that aren't ready to serve (e.g. still warming up).",
+    "wrongHint": "The correct answer is B. Readiness probe failure → removed from Service endpoints (no traffic). Liveness probe failure → container restart. They serve different purposes."
+  },
+  {
+    "id": "bg-15",
+    "tier": "beginner",
+    "topic": "health-checks",
+    "scenario": "Your application takes 30 seconds to start. You set a liveness probe with no `initialDelaySeconds`. What happens?",
+    "options": [
+      { "id": "a", "text": "Nothing — liveness probes wait for the container to be ready before starting" },
+      { "id": "b", "text": "The probe runs immediately, fails during startup, and Kubernetes restarts the container in a loop" },
+      { "id": "c", "text": "The pod enters Pending state until the probe passes" },
+      { "id": "d", "text": "Kubernetes automatically detects the startup time and adjusts the delay" }
+    ],
+    "correct": "b",
+    "explanation": "Without `initialDelaySeconds`, liveness probes start immediately after the container starts. If your app takes 30s to start, the probe will fail during that window, causing Kubernetes to kill and restart the container — creating a restart loop. Fix: set `initialDelaySeconds: 35` (or better, use a `startupProbe` which disables the liveness probe until the startup probe succeeds). Startup probes are the modern solution for slow-starting apps.",
+    "wrongHint": "The correct answer is B. Probes start immediately by default. A slow-starting app will fail the liveness check and get killed before it finishes booting."
+  },
+  {
+    "id": "bg-16",
+    "tier": "beginner",
+    "topic": "labels-selectors",
+    "scenario": "You have 10 pods, 6 with label `env=prod` and 4 with `env=staging`. What does `kubectl get pods -l env=prod` return?",
+    "options": [
+      { "id": "a", "text": "All 10 pods" },
+      { "id": "b", "text": "Only the 6 pods with `env=prod`" },
+      { "id": "c", "text": "An error — label selectors require a namespace flag" },
+      { "id": "d", "text": "The 4 pods with `env=staging`" }
+    ],
+    "correct": "b",
+    "explanation": "The `-l` flag applies a label selector, filtering the output to only resources matching the expression. `env=prod` matches pods where the label `env` equals `prod`. This is the same mechanism Services use to find their pods — the selector in a Service spec matches pods by label. You can combine selectors: `-l env=prod,app=api` requires both labels.",
+    "wrongHint": "The correct answer is B. `-l env=prod` is a label selector — it returns only pods that have the `env=prod` label."
+  },
+  {
+    "id": "bg-17",
+    "tier": "beginner",
+    "topic": "kubectl",
+    "scenario": "You need to quickly test a one-off command inside a running pod without writing a manifest. What is the fastest approach?",
+    "options": [
+      { "id": "a", "text": "`kubectl attach my-pod`" },
+      { "id": "b", "text": "`kubectl exec -it my-pod -- /bin/sh`" },
+      { "id": "c", "text": "`kubectl debug my-pod`" },
+      { "id": "d", "text": "`kubectl run --attach my-pod`" }
+    ],
+    "correct": "b",
+    "explanation": "`kubectl exec -it my-pod -- /bin/sh` opens an interactive shell inside the running container. `-i` keeps stdin open; `-t` allocates a TTY. You can also run a single command non-interactively: `kubectl exec my-pod -- ls /app`. If the pod has multiple containers specify the target with `-c <container-name>`.",
+    "wrongHint": "The correct answer is B. `kubectl exec -it <pod> -- /bin/sh` is the standard way to get a shell inside a running container."
+  },
+  {
+    "id": "bg-18",
+    "tier": "beginner",
+    "topic": "kubectl",
+    "scenario": "You want to see live log output from a pod as it runs, similar to `tail -f`. Which flag does this?",
+    "options": [
+      { "id": "a", "text": "`kubectl logs my-pod --watch`" },
+      { "id": "b", "text": "`kubectl logs my-pod --follow`" },
+      { "id": "c", "text": "`kubectl logs my-pod --live`" },
+      { "id": "d", "text": "`kubectl watch logs my-pod`" }
+    ],
+    "correct": "b",
+    "explanation": "`kubectl logs my-pod --follow` (or `-f`) streams logs in real time, like `tail -f`. It will keep running until you Ctrl+C. Combine with `--since=5m` to only tail recent logs, or `--previous` to see logs from the last crashed container. For multi-container pods add `-c <container>`.",
+    "wrongHint": "The correct answer is B. The flag is `--follow` (or `-f`), not `--watch`. `--watch` is used with `kubectl get` for resource state changes."
+  },
+  {
+    "id": "bg-19",
+    "tier": "beginner",
+    "topic": "pod-lifecycle",
+    "scenario": "You need to run a database migration before your main application starts, inside the same pod. What Kubernetes feature handles this?",
+    "options": [
+      { "id": "a", "text": "A sidecar container with `dependsOn` configuration" },
+      { "id": "b", "text": "An init container that runs to completion before the main container starts" },
+      { "id": "c", "text": "A Job that must complete before the Deployment is created" },
+      { "id": "d", "text": "A lifecycle `postStart` hook on the main container" }
+    ],
+    "correct": "b",
+    "explanation": "Init containers run sequentially inside a pod before any app containers start. They must exit with code 0 for the pod to proceed. This makes them ideal for migrations, config generation, waiting for a dependency to be ready, or seeding data. If an init container fails the pod restarts (respecting restartPolicy). The main app container only starts after all init containers have succeeded.",
+    "wrongHint": "The correct answer is B. Init containers are designed for exactly this — run-to-completion tasks that must succeed before the main app starts."
+  },
+  {
+    "id": "bg-20",
+    "tier": "beginner",
+    "topic": "deployments",
+    "scenario": "Your Deployment has 3 replicas. You run `kubectl scale deployment api --replicas=0`. What happens to the pods?",
+    "options": [
+      { "id": "a", "text": "The pods are paused and preserved" },
+      { "id": "b", "text": "All 3 pods are terminated and the Deployment stays at 0 replicas" },
+      { "id": "c", "text": "The command fails — you cannot scale to 0" },
+      { "id": "d", "text": "One pod is kept as a standby" }
+    ],
+    "correct": "b",
+    "explanation": "Scaling to 0 is a valid and common pattern. All pods are gracefully terminated (SIGTERM → grace period → SIGKILL). The Deployment object remains with `replicas: 0`, preserving its configuration. Scale back up any time with `kubectl scale deployment api --replicas=3`. This is used to 'park' a workload without deleting it, or to force a restart of all pods (scale 0 then back up).",
+    "wrongHint": "The correct answer is B. Scaling to 0 is fully supported. All pods terminate and the Deployment is preserved at 0 replicas."
+  }
+]
