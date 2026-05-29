@@ -1,10 +1,79 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type { Question } from "./page";
 
 type Answer = { questionId: string; chosen: string; correct: boolean };
+
+// ─── localStorage persistence ─────────────────────────────────────────────────
+
+const TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+
+type CachedProgress = {
+  userId: string;
+  tier: string;
+  currentIndex: number;
+  answers: Answer[];
+  questionIds: string;  // comma-joined IDs — detects question set changes
+  startedAt: number;
+};
+
+function cacheKey(userId: string, tier: string) {
+  return `quiz:progress:${userId}:${tier}`;
+}
+
+function loadProgress(
+  userId: string,
+  tier: string,
+  questions: Question[]
+): { currentIndex: number; answers: Answer[] } | null {
+  try {
+    const raw = localStorage.getItem(cacheKey(userId, tier));
+    if (!raw) return null;
+    const s = JSON.parse(raw) as CachedProgress;
+
+    if (s.userId !== userId || s.tier !== tier) return null;
+    if (Date.now() - s.startedAt > TTL_MS) return null;
+    if (s.questionIds !== questions.map((q) => q.id).join(",")) return null;
+    if (s.currentIndex > questions.length || s.answers.length !== s.currentIndex) return null;
+    if (s.currentIndex === questions.length) return null; // fully done — don't restore
+
+    return { currentIndex: s.currentIndex, answers: s.answers };
+  } catch {
+    return null;
+  }
+}
+
+function saveProgress(
+  userId: string,
+  tier: string,
+  currentIndex: number,
+  answers: Answer[],
+  questions: Question[],
+  startedAt: number
+) {
+  try {
+    const data: CachedProgress = {
+      userId,
+      tier,
+      currentIndex,
+      answers,
+      questionIds: questions.map((q) => q.id).join(","),
+      startedAt,
+    };
+    localStorage.setItem(cacheKey(userId, tier), JSON.stringify(data));
+  } catch {}
+}
+
+function clearProgress(userId: string, tier: string) {
+  try {
+    localStorage.removeItem(cacheKey(userId, tier));
+  } catch {}
+}
+
+// ─── ScoreCard ────────────────────────────────────────────────────────────────
 
 function ScoreCard({
   tier,
@@ -12,12 +81,14 @@ function ScoreCard({
   total,
   answers,
   questions,
+  onRetry,
 }: {
   tier: string;
   score: number;
   total: number;
   answers: Answer[];
   questions: Question[];
+  onRetry: () => void;
 }) {
   const pct = Math.round((score / total) * 100);
   const topicMap = new Map<string, { correct: number; total: number }>();
@@ -36,8 +107,7 @@ function ScoreCard({
     .map(([topic]) => topic);
 
   const tierLabel = tier.charAt(0).toUpperCase() + tier.slice(1);
-  const color =
-    pct >= 80 ? "text-teal-400" : pct >= 60 ? "text-amber-400" : "text-red-400";
+  const color = pct >= 80 ? "text-teal-400" : pct >= 60 ? "text-amber-400" : "text-red-400";
 
   return (
     <div className="mx-auto max-w-xl space-y-6 py-4">
@@ -97,16 +167,18 @@ function ScoreCard({
         >
           ← All tiers
         </Link>
-        <Link
-          href={`/quiz/${tier}`}
-          className="flex-1 rounded-lg bg-teal-600 px-4 py-2.5 text-center text-sm font-semibold text-white hover:bg-teal-500 transition-colors"
+        <button
+          onClick={onRetry}
+          className="flex-1 rounded-lg bg-teal-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-teal-500 transition-colors"
         >
           Retry
-        </Link>
+        </button>
       </div>
     </div>
   );
 }
+
+// ─── QuizPane ─────────────────────────────────────────────────────────────────
 
 function QuizPane({
   question,
@@ -144,8 +216,7 @@ function QuizPane({
 
       <div className="space-y-2">
         {question.options.map((opt) => {
-          let cls =
-            "w-full rounded-lg border px-4 py-3 text-left text-sm transition-colors ";
+          let cls = "w-full rounded-lg border px-4 py-3 text-left text-sm transition-colors ";
           if (!revealed) {
             cls += "border-surface-600 bg-surface-800 text-gray-300 hover:border-teal-500/60 hover:bg-surface-700 cursor-pointer";
           } else if (opt.id === question.correct) {
@@ -155,7 +226,6 @@ function QuizPane({
           } else {
             cls += "border-surface-600 bg-surface-800 text-gray-500 cursor-default opacity-60";
           }
-
           return (
             <button key={opt.id} className={cls} onClick={() => pick(opt.id)}>
               <span className="mr-2 font-mono text-gray-500">{opt.id.toUpperCase()}.</span>
@@ -168,9 +238,7 @@ function QuizPane({
       {revealed && (
         <div
           className={`rounded-xl border p-4 ${
-            isCorrect
-              ? "border-teal-500/30 bg-teal-500/5"
-              : "border-red-500/30 bg-red-500/5"
+            isCorrect ? "border-teal-500/30 bg-teal-500/5" : "border-red-500/30 bg-red-500/5"
           }`}
         >
           {isCorrect ? (
@@ -196,28 +264,50 @@ function QuizPane({
   );
 }
 
+// ─── Main component ───────────────────────────────────────────────────────────
+
 export function QuizClient({
   tier,
   questions,
+  userId,
 }: {
   tier: string;
   questions: Question[];
+  userId: string;
 }) {
+  const router = useRouter();
+  const startedAtRef = useRef(Date.now());
+
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<Answer[]>([]);
   const [pendingAnswer, setPendingAnswer] = useState<Answer | null>(null);
   const [done, setDone] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [resumeBanner, setResumeBanner] = useState(false);
+
+  // Restore saved progress on mount (client-only)
+  useEffect(() => {
+    const saved = loadProgress(userId, tier, questions);
+    if (saved && saved.currentIndex > 0) {
+      setCurrentIndex(saved.currentIndex);
+      setAnswers(saved.answers);
+      setResumeBanner(true);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const total = questions.length;
   const current = questions[currentIndex];
 
-  const handleAnswer = useCallback((chosen: string, correct: boolean) => {
-    setPendingAnswer({ questionId: current.id, chosen, correct });
-  }, [current]);
+  const handleAnswer = useCallback(
+    (chosen: string, correct: boolean) => {
+      setPendingAnswer({ questionId: current.id, chosen, correct });
+    },
+    [current]
+  );
 
   async function handleNext() {
     if (!pendingAnswer) return;
+    setResumeBanner(false);
     const next = [...answers, pendingAnswer];
     setAnswers(next);
     setPendingAnswer(null);
@@ -232,17 +322,40 @@ export function QuizClient({
           body: JSON.stringify({ tier, score, total, answers: next }),
         });
       } finally {
+        clearProgress(userId, tier);
         setSaving(false);
         setDone(true);
       }
     } else {
-      setCurrentIndex((i) => i + 1);
+      const nextIndex = currentIndex + 1;
+      setCurrentIndex(nextIndex);
+      // Save after advancing — only committed answers are persisted
+      saveProgress(userId, tier, nextIndex, next, questions, startedAtRef.current);
     }
+  }
+
+  function handleRetry() {
+    clearProgress(userId, tier);
+    startedAtRef.current = Date.now();
+    setCurrentIndex(0);
+    setAnswers([]);
+    setPendingAnswer(null);
+    setDone(false);
+    router.refresh();
   }
 
   if (done) {
     const score = answers.filter((a) => a.correct).length;
-    return <ScoreCard tier={tier} score={score} total={total} answers={answers} questions={questions} />;
+    return (
+      <ScoreCard
+        tier={tier}
+        score={score}
+        total={total}
+        answers={answers}
+        questions={questions}
+        onRetry={handleRetry}
+      />
+    );
   }
 
   const progress = ((currentIndex / total) * 100).toFixed(0);
@@ -255,6 +368,20 @@ export function QuizClient({
         </Link>
         <span className="text-xs font-semibold capitalize text-gray-400">{tier}</span>
       </div>
+
+      {resumeBanner && (
+        <div className="flex items-center justify-between rounded-lg border border-teal-500/30 bg-teal-500/5 px-4 py-2.5">
+          <p className="text-xs text-teal-400">
+            Resuming from question {currentIndex + 1} of {total}
+          </p>
+          <button
+            onClick={handleRetry}
+            className="text-xs text-gray-500 hover:text-gray-300 transition-colors"
+          >
+            Start over
+          </button>
+        </div>
+      )}
 
       <div className="h-1.5 w-full rounded-full bg-surface-700">
         <div
