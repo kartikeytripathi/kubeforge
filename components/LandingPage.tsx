@@ -151,6 +151,15 @@ const FEATURES = [
     title: "CKA → EKS Curriculum",
     desc: "38 labs across 4 phases. Start with vanilla Kubernetes, advance through production patterns, finish with AWS EKS.",
   },
+  {
+    icon: (
+      <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    ),
+    title: "K8s Knowledge Check",
+    desc: "60 scenario-based MCQs across Beginner, Intermediate, and CKA-level Advanced tiers. Every answer reveals a detailed explanation and your weak topics.",
+  },
 ];
 
 // ── How it works steps ────────────────────────────────────────────────────────
@@ -179,6 +188,7 @@ const COMPARE_ROWS = [
   { feature: "Hands-on kubectl practice",      kubeforge: true,  video: false, docs: false },
   { feature: "No cloud account needed",        kubeforge: true,  video: true,  docs: true  },
   { feature: "Automated pass/fail grading",    kubeforge: true,  video: false, docs: false },
+  { feature: "Scenario-based knowledge quiz",  kubeforge: true,  video: false, docs: false },
   { feature: "Structured CKA → EKS path",     kubeforge: true,  video: true,  docs: false },
   { feature: "Progress synced across devices", kubeforge: true,  video: false, docs: false },
   { feature: "Free forever",                   kubeforge: true,  video: false, docs: true  },
@@ -211,6 +221,10 @@ const FAQS = [
   {
     q: "How does lab verification work?",
     a: "Each lab has a set of objectives. When you click Verify, a checker inspects your cluster state — it reads object metadata, checks labels, counts replicas, verifies service selectors, etc. Pass/fail is returned in milliseconds. No multiple choice, no self-grading.",
+  },
+  {
+    q: "What is the K8s Knowledge Check?",
+    a: "A scenario-based MCQ quiz with 60 questions across three tiers — Beginner, Intermediate, and Advanced (CKA-level). Each question presents a real-world situation and four options. After you answer, a detailed explanation is revealed. At the end of each tier you get a scorecard showing your score, topic breakdown, and areas to review. Your progress is saved so you can resume where you left off.",
   },
   {
     q: "Is KubeForge free?",
@@ -338,7 +352,7 @@ export function LandingPage() {
           <div className="w-full lg:w-1/2 text-center lg:text-left space-y-6">
             <div className="animate-fade-in-up inline-flex items-center gap-2 rounded-full border border-teal-600/40 bg-teal-600/10 px-4 py-1.5 text-xs font-semibold text-teal-400 tracking-wider" style={{ animationDelay: "100ms" }}>
               <span className="h-1.5 w-1.5 rounded-full bg-teal-400 animate-pulse" />
-              38 HANDS-ON LABS · PHASE A → D
+              38 LABS · 60 MCQs · PHASE A → D
             </div>
             <h1 className="animate-fade-in-up text-4xl sm:text-5xl font-bold leading-[1.1] tracking-tight lg:text-6xl" style={{ animationDelay: "200ms" }}>
               Learn Kubernetes{" "}<span className="text-teal-400">by doing.</span>
@@ -357,10 +371,11 @@ export function LandingPage() {
       {/* ── Stats bar ── */}
       <section className="border-y border-surface-600 bg-surface-800/60 px-4 sm:px-6 py-6 sm:py-8">
         <Reveal>
-          <div className="mx-auto grid grid-cols-2 sm:flex max-w-4xl flex-wrap items-center justify-center gap-6 sm:gap-12">
+          <div className="mx-auto grid grid-cols-3 sm:flex max-w-4xl flex-wrap items-center justify-center gap-6 sm:gap-10">
             {[
               { value: "38",   label: "Hands-on Labs"   },
               { value: "4",    label: "Learning Phases" },
+              { value: "60",   label: "Quiz Questions"  },
               { value: "100%", label: "In-browser"      },
               { value: "Free", label: "Always"          },
             ].map((s) => (
@@ -380,7 +395,7 @@ export function LandingPage() {
             <h2 className="mb-3 text-center text-3xl font-bold">Not another video course</h2>
             <p className="mb-14 text-center text-gray-400">Every concept is learned by solving a real scenario — not watching someone else solve it.</p>
           </Reveal>
-          <div className="grid gap-6 sm:grid-cols-2 md:grid-cols-3">
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {FEATURES.map((f, i) => (
               <Reveal key={f.title} delay={i * 100}>
                 <div className="h-full rounded-2xl border border-surface-600 bg-surface-800 p-6 transition-all duration-300 hover:border-teal-600/50 hover:bg-surface-700 hover:-translate-y-1">
