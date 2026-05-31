@@ -13,8 +13,11 @@ A webapp for learning Kubernetes and Amazon EKS through hands-on labs. Every con
 - **In-browser Kubernetes cluster** — real `kubectl` commands, no cloud account needed
 - **38 hands-on labs** across 4 phases (Phase A → D)
 - **Automated lab verification** — pass/fail in milliseconds, not multiple choice
+- **K8s Knowledge Check** — 60 scenario-based MCQs across Beginner / Intermediate / Advanced (CKA-level) tiers; per-answer explanation reveal, topic scorecard, weak-area highlights
+- **Quiz progress persistence** — in-progress quiz state saved to localStorage; resume from last question on return, with 7-day TTL and per-user isolation
+- **Responsive layout** — full sidebar on desktop; bottom tab bar + single-panel lab switcher on mobile
 - **GitHub OAuth** — sign in with GitHub, progress synced across devices
-- **MongoDB-backed progress** — lab attempts and completions persisted per user
+- **MongoDB-backed progress** — lab attempts, completions, and quiz scores persisted per user
 - **Animated landing page** — scroll animations, floating K8s nodes, FAQ accordion
 - **Open Graph / SEO** — sitemap.xml, robots.txt, Twitter card metadata
 - **New user notifications** — email alert via Resend on every new signup
@@ -99,7 +102,6 @@ A webapp for learning Kubernetes and Amazon EKS through hands-on labs. Every con
 
 | # | Feature | Description |
 |---|---|---|
-| [#9](https://github.com/kartikeytripathi/kubeforge/issues/9) | **K8s Knowledge Check** | Scenario-based MCQ quiz — Beginner / Intermediate / Advanced (CKA level), 20 questions per tier, detailed explanation on every answer, scorecard at end of each tier |
 | [#10](https://github.com/kartikeytripathi/kubeforge/issues/10) | **K8s Internals Mastery integration** | "Why this works →" footer links on every lab, new diagnostic lab type (identify the failing stage, not just fix the YAML), Phase E — Internals Track |
 | [#11](https://github.com/kartikeytripathi/kubeforge/issues/11) | **Next Lab button** | After all objectives pass, a button appears to jump directly to the next lab without going back to the curriculum |
 | [#12](https://github.com/kartikeytripathi/kubeforge/issues/12) | **Real Cluster Mode** | Opt-in toggle per lab — provisions an isolated vCluster per session, pipes a live `kubectl` terminal (xterm.js) into the lab UI, verifier queries the real cluster instead of the simulator |
@@ -135,8 +137,14 @@ kubeforge/
 │   │   ├── auth/[...nextauth]/   # NextAuth route handler
 │   │   ├── attempt/              # Record lab attempt → MongoDB
 │   │   ├── complete/             # Record lab completion → MongoDB
-│   │   └── progress/             # Fetch user progress from MongoDB
+│   │   ├── progress/             # Fetch user progress from MongoDB
+│   │   └── quiz/attempt/         # Record quiz score → MongoDB
 │   ├── lesson/[id]/              # Lab pages (server-rendered, force-dynamic)
+│   ├── quiz/                     # K8s Knowledge Check
+│   │   ├── page.tsx              # Tier landing (Beginner / Intermediate / Advanced)
+│   │   └── [tier]/               # Per-tier quiz flow
+│   │       ├── page.tsx          # Server component — auth check + load questions
+│   │       └── QuizClient.tsx    # Question flow, explanation reveal, scorecard, localStorage resume
 │   ├── curriculum/               # Phase/lesson browser
 │   ├── progress/                 # Heatmap + readiness gauges
 │   ├── settings/                 # Keyboard shortcuts, storage info
@@ -146,8 +154,8 @@ kubeforge/
 │   ├── LandingPage.tsx           # Animated landing page (unauthenticated)
 │   ├── Dashboard.tsx             # Progress dashboard (authenticated)
 │   ├── AuthButton.tsx            # GitHub sign in/out + avatar
-│   ├── Sidebar.tsx               # Nav sidebar with report/GitHub links
-│   ├── LabPane.tsx               # Three-panel lab layout
+│   ├── Sidebar.tsx               # Desktop sidebar + mobile bottom tab bar
+│   ├── LabPane.tsx               # Three-panel lab layout (desktop) / tab switcher (mobile)
 │   ├── YamlEditor.tsx            # Monaco editor (YAML mode)
 │   ├── ClusterCanvas.tsx         # React Flow cluster visualisation
 │   ├── VerifyPanel.tsx           # Objectives checklist + hints
@@ -163,7 +171,8 @@ kubeforge/
 │   ├── models/
 │   │   ├── User.ts               # Mongoose user model (githubId, name, email, avatar)
 │   │   ├── LabAttempt.ts         # Mongoose attempt model
-│   │   └── LabCompletion.ts      # Mongoose completion model
+│   │   ├── LabCompletion.ts      # Mongoose completion model
+│   │   └── QuizAttempt.ts        # Mongoose quiz score model (userId, tier, score, answers)
 │   ├── mongoose.ts               # MongoDB connection singleton
 │   ├── verifiers/                # Per-lab assertion functions (one file per lab)
 │   └── progress-store.ts         # Zustand progress store (localStorage cache)
@@ -172,7 +181,8 @@ kubeforge/
 ├── middleware.ts                  # Route protection — redirects unauthenticated users
 ├── content/
 │   ├── lessons/                  # MDX concept text (one per lab, ≤400 words)
-│   └── labs/                     # JSON lab definitions (starter YAML, objectives, hints, solution)
+│   ├── labs/                     # JSON lab definitions (starter YAML, objectives, hints, solution)
+│   └── questions/                # MCQ question banks (beginner.json, intermediate.json, advanced.json)
 └── tests/
     ├── unit/                     # Vitest — simulator + verifier tests
     └── e2e/                      # Playwright — phase smoke tests
