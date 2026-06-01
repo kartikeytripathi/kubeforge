@@ -8,6 +8,7 @@ import { VerifyPanel } from "./VerifyPanel";
 import { useSimulator } from "@/hooks/useSimulator";
 import { useProgressStore } from "@/lib/progress-store";
 import type { LabDefinition, ObjectiveResult, VerifierFn } from "@/lib/verifiers/types";
+import { LAB_MODULE_MAP, isModuleLive } from "@/lib/lab-module-map";
 
 const KubectlTerminal = dynamic(
   () => import("./KubectlTerminal").then((m) => m.KubectlTerminal),
@@ -189,6 +190,7 @@ interface Props {
 }
 
 export function LabPane({ lab, verifier, hiddenSetupYaml, scenarioHtml, scenarioText }: Props) {
+  const moduleLink = LAB_MODULE_MAP[lab.id] ?? null;
   const [yaml, setYaml]             = useState(lab.starterYaml);
   const [results, setResults]       = useState<ObjectiveResult[] | null>(null);
   const [failCount, setFailCount]   = useState(0);
@@ -534,6 +536,36 @@ export function LabPane({ lab, verifier, hiddenSetupYaml, scenarioHtml, scenario
           elapsedMs={elapsed}
         />
       </div>
+
+      {/* ── "Why this works →" internals link ───────────────────────────── */}
+      {moduleLink && (
+        <div className="shrink-0 border-t border-surface-700/50 bg-surface-900 px-4 py-2 flex items-center gap-2 min-w-0">
+          <span className="shrink-0 text-[10px] font-mono text-gray-700 uppercase tracking-wider">
+            Internals
+          </span>
+          <span className="shrink-0 h-3 w-px bg-surface-700" />
+          <span className="shrink-0 rounded bg-surface-800 border border-surface-600 px-1.5 py-0.5 text-[10px] font-mono font-semibold text-teal-600">
+            M{moduleLink.moduleNum}
+          </span>
+          {isModuleLive(lab.id) ? (
+            <a
+              href={moduleLink.guideUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="truncate text-xs text-teal-500 hover:text-teal-300 transition-colors hover:underline"
+            >
+              {moduleLink.linkText}
+            </a>
+          ) : (
+            <span className="truncate text-xs text-gray-700">
+              {moduleLink.linkText}
+              <span className="ml-1.5 rounded border border-surface-700 bg-surface-800 px-1 py-0.5 text-[10px] text-gray-700">
+                soon
+              </span>
+            </span>
+          )}
+        </div>
+      )}
     </div>
   );
 }

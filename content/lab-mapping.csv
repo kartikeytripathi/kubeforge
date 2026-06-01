@@ -1,0 +1,45 @@
+kubeforge_lab_id,lab_title,internals_module,internals_module_title,internals_section,internals_section_anchor,link_text
+a1,Fix the CrashLoopBackOff,1,API Request Lifecycle,Kubelet & the final mile — how a container actually starts,kubelet--the-final-mile,Why kubectl apply triggers a CrashLoopBackOff →
+a1,Fix the CrashLoopBackOff,2,etcd & the Storage Layer,MVCC and compaction,mvcc-and-compaction,How pod state is stored and watched →
+a2,Zero-downtime image rollout,1,API Request Lifecycle,The API server request pipeline,the-api-server-request-pipeline,How kubectl apply reaches the cluster →
+a2,Zero-downtime image rollout,3,Controllers & Reconciliation,Deployment controller rollout logic,deployment-controller-rollout-logic,Why rolling updates work the way they do →
+a3,Wire the frontend to the backend,9,Networking Internals & kube-proxy Modes,kube-proxy and iptables rules,kube-proxy-and-iptables-rules,How Services route traffic between pods →
+a4,ConfigMaps & Secrets — Injecting configuration,2,etcd & the Storage Layer,Key structure and protobuf encoding,the-etcd-data-model-inside-kubernetes,How ConfigMaps and Secrets are stored in etcd →
+a5,PersistentVolumeClaims — Giving pods durable storage,6,CRI CNI CSI — The Three Interfaces,CSI — Container Storage Interface,csi--container-storage-interface,How PVCs bind to storage via CSI →
+a6,Namespaces — Isolating teams and environments,1,API Request Lifecycle,Authorization — RBAC and beyond,authorization--rbac-and-beyond,How namespace isolation is enforced at the API level →
+a7,Multi-resource stacks — Deploy a full application,1,API Request Lifecycle,The API server request pipeline,the-api-server-request-pipeline,How multi-document YAML is applied through the API →
+a8,Boss Lab — Production incident,1,API Request Lifecycle,The API server request pipeline,the-api-server-request-pipeline,How the API server processes all your fix commands →
+b1,Fix the broken liveness probe,5,Kubelet PLEG & Node Lifecycle,Liveness readiness and startup probes,liveness-readiness-and-startup-probes,Why liveness probes trigger pod restarts →
+b2,Pods stuck Pending — over-requested CPU,4,Scheduler Internals & Custom Plugins,The scheduling cycle — filter and score,the-scheduling-cycle--filter-and-score,Why resource requests block scheduling →
+b3,Schedule a pod on a tainted GPU node,4,Scheduler Internals & Custom Plugins,Taints tolerations and node affinity,taints-tolerations-and-node-affinity,How taints and tolerations influence the scheduler →
+b4,Scale a StatefulSet and verify stable pod identity,2,etcd & the Storage Layer,The Watch/Notify pipeline,the-watchnotify-pipeline,How StatefulSet ordinals persist across restarts →
+b4,Scale a StatefulSet and verify stable pod identity,3,Controllers & Reconciliation,StatefulSet controller and ordinal guarantees,statefulset-controller-and-ordinal-guarantees,Why StatefulSet pods keep their identity →
+b5,Deploy a log-collector DaemonSet on every node,5,Kubelet PLEG & Node Lifecycle,Node registration and DaemonSet scheduling,node-registration-and-daemonset-scheduling,How DaemonSets track node lifecycle events →
+b6,Fix the broken Job and schedule a CronJob,3,Controllers & Reconciliation,Job and CronJob controllers,job-and-cronjob-controllers,How the Job controller manages completions →
+b7,Route traffic with an Ingress,9,Networking Internals & kube-proxy Modes,Ingress controllers and traffic routing,ingress-controllers-and-traffic-routing,How Ingress controllers route external traffic →
+b8,Grant pod-listing permission with RBAC,1,API Request Lifecycle,Authorization — RBAC and beyond,authorization--rbac-and-beyond,How RBAC gates every API request →
+b9,Configure an HPA with correct scaling thresholds,3,Controllers & Reconciliation,HPA controller and metrics pipeline,hpa-controller-and-metrics-pipeline,How the HPA controller reads metrics and triggers scaling →
+b10,Boss Lab — Three simultaneous production failures,5,Kubelet PLEG & Node Lifecycle,PLEG and node lifecycle events,pleg-and-node-lifecycle-events,How kubelet detects and responds to pod failures →
+c1,Register a CRD and create a custom resource,8,CRDs Operators & controller-runtime,CRD registration and the extension API server,crd-registration-and-the-extension-api-server,How CRDs extend the Kubernetes API →
+c2,Validating webhook — reject :latest image tags,7,Admission Control & CEL Policy,Validating admission webhooks,validating-admission-webhooks,How admission webhooks intercept and reject API requests →
+c3,Debug a Pending pod — scheduler nodeSelector mismatch,4,Scheduler Internals & Custom Plugins,The scheduling cycle — filter and score,the-scheduling-cycle--filter-and-score,Why nodeSelector mismatches leave pods Pending forever →
+c4,Trace the Deployment reconcile loop,3,Controllers & Reconciliation,The reconcile loop pattern,the-reconcile-loop-pattern,How controllers watch etcd and drive desired state →
+c4,Trace the Deployment reconcile loop,2,etcd & the Storage Layer,The Watch/Notify pipeline,the-watchnotify-pipeline,How etcd watch events trigger reconciliation →
+c5,Enforce mTLS in the payments namespace with Istio,9,Networking Internals & kube-proxy Modes,Service mesh and eBPF datapath,service-mesh-and-ebpf-datapath,How Istio intercepts pod traffic for mTLS →
+c6,Fix an ArgoCD Application hammering the GitHub API,3,Controllers & Reconciliation,The reconcile loop pattern,the-reconcile-loop-pattern,Why runaway reconcile loops exhaust external APIs →
+c7,Enforce no-privileged-containers with Kyverno,7,Admission Control & CEL Policy,Policy engines — OPA Kyverno and CEL,policy-engines--opa-kyverno-and-cel,How Kyverno enforces policy at admission time →
+c8,Restore a namespace from a Velero backup,6,CRI CNI CSI — The Three Interfaces,CSI — Container Storage Interface,csi--container-storage-interface,How Velero snapshots storage via CSI hooks →
+c9,Boss Lab — ArgoCD repo-server bottleneck,3,Controllers & Reconciliation,The reconcile loop pattern,the-reconcile-loop-pattern,How controller throughput affects cluster convergence →
+d1,Configure Karpenter NodePools for different workload types,4,Scheduler Internals & Custom Plugins,Karpenter — scheduling without the scheduler,karpenter--scheduling-without-the-scheduler,How Karpenter bypasses kube-scheduler for node provisioning →
+d2,Fix ENI exhaustion with VPC CNI prefix delegation,6,CRI CNI CSI — The Three Interfaces,CNI — Container Network Interface,cni--container-network-interface,How VPC CNI assigns IPs to pods on EKS →
+d3,Migrate from IRSA to EKS Pod Identity,1,API Request Lifecycle,Authentication — who are you?,authentication--who-are-you,How pod identity maps to AWS IAM credentials →
+d4,Configure an internet-facing ALB with AWS Load Balancer Controller,9,Networking Internals & kube-proxy Modes,Ingress controllers and traffic routing,ingress-controllers-and-traffic-routing,How the AWS LBC translates Ingress objects to ALB rules →
+d5,Fix Karpenter's over-aggressive consolidation,4,Scheduler Internals & Custom Plugins,Karpenter — scheduling without the scheduler,karpenter--scheduling-without-the-scheduler,Why Karpenter's scoring model triggers consolidation →
+d6,Enable EKS Auto Mode with the correct NodeClass reference,8,CRDs Operators & controller-runtime,CRD registration and the extension API server,crd-registration-and-the-extension-api-server,How NodeClass CRDs configure EKS Auto Mode →
+d7,Add PodDisruptionBudgets before an EKS version upgrade,10,HA Upgrades & Cluster Lifecycle,Cluster upgrades and node draining,cluster-upgrades-and-node-draining,How PDBs protect pods during node drain →
+d8,Configure cross-account ECR access,1,API Request Lifecycle,Authentication — who are you?,authentication--who-are-you,How ECR image pulls authenticate at the API level →
+d9,Fix ECR lifecycle policy to protect multi-arch images,6,CRI CNI CSI — The Three Interfaces,CRI — Container Runtime Interface,cri--container-runtime-interface,How the CRI pulls images and resolves multi-arch manifests →
+d10,Enable kubelet volume metrics for EKS observability,5,Kubelet PLEG & Node Lifecycle,Kubelet metrics and the metrics pipeline,kubelet-metrics-and-the-metrics-pipeline,How kubelet exposes volume metrics to the metrics server →
+d11,Fix Fargate pod scheduling failure,5,Kubelet PLEG & Node Lifecycle,Node registration and DaemonSet scheduling,node-registration-and-daemonset-scheduling,How Fargate virtual nodes differ from EC2 kubelet nodes →
+d12,Optimize EKS costs with Spot + Karpenter consolidation,4,Scheduler Internals & Custom Plugins,Karpenter — scheduling without the scheduler,karpenter--scheduling-without-the-scheduler,How Karpenter's consolidation loop evaluates Spot interruptions →
+d13,ShopEKS Revival — Phase D Capstone,1,API Request Lifecycle,The API server request pipeline,the-api-server-request-pipeline,How every fix you apply flows through the K8s API →
