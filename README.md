@@ -11,8 +11,10 @@ A webapp for learning Kubernetes and Amazon EKS through hands-on labs. Every con
 ## Features
 
 - **In-browser Kubernetes cluster** — real `kubectl` commands, no cloud account needed
-- **38 hands-on labs** across 4 phases (Phase A → D)
+- **39 hands-on labs** across 4 phases (Phase A → D)
 - **Automated lab verification** — pass/fail in milliseconds, not multiple choice
+- **"Why this works →" footer** — every lab links to the relevant K8s Internals module section explaining the underlying mechanism
+- **K8s Internals modules** — deep-dive guides in `modules/` covering the 10 core internals topics; Module 2 (etcd) live with guide, hands-on lab, and slide deck
 - **K8s Knowledge Check** — 60 scenario-based MCQs across Beginner / Intermediate / Advanced (CKA-level) tiers; per-answer explanation reveal, topic scorecard, weak-area highlights
 - **Quiz progress persistence** — in-progress quiz state saved to localStorage; resume from last question on return, with 7-day TTL and per-user isolation
 - **Responsive layout** — full sidebar on desktop; bottom tab bar + single-panel lab switcher on mobile
@@ -27,13 +29,13 @@ A webapp for learning Kubernetes and Amazon EKS through hands-on labs. Every con
 
 ## Labs
 
-38 labs across 4 phases, all available on the [curriculum page](https://kubeforge.kartikeytripathi.in/curriculum).
+39 labs across 4 phases, all available on the [curriculum page](https://kubeforge.kartikeytripathi.in/curriculum).
 
 | Phase | Title | Labs |
 |---|---|---|
 | **A** | Foundations (Vanilla K8s) | A1–A8 (8 labs) |
 | **B** | Production K8s | B1–B10 (10 labs) |
-| **C** | Advanced K8s | C1–C9 (9 labs) |
+| **C** | Advanced K8s | C1–C10 (10 labs) |
 | **D** | EKS Deep Track | D1–D13 (13 labs) |
 
 ### Phase A — Foundations
@@ -77,6 +79,7 @@ A webapp for learning Kubernetes and Amazon EKS through hands-on labs. Every con
 | C7 | Pod Security Standards / Kyverno | |
 | C8 | Backup and DR with Velero | |
 | C9 | Boss Lab — ArgoCD repo-server bottleneck | 🔥 |
+| C10 | Fix the slow admission webhook | 🔥 |
 
 ### Phase D — EKS Deep Track
 
@@ -100,11 +103,11 @@ A webapp for learning Kubernetes and Amazon EKS through hands-on labs. Every con
 
 ## Upcoming
 
-| # | Feature | Description |
-|---|---|---|
-| [#10](https://github.com/kartikeytripathi/kubeforge/issues/10) | **K8s Internals Mastery integration** | "Why this works →" footer links on every lab, new diagnostic lab type (identify the failing stage, not just fix the YAML), Phase E — Internals Track |
-| [#11](https://github.com/kartikeytripathi/kubeforge/issues/11) | **Next Lab button** | After all objectives pass, a button appears to jump directly to the next lab without going back to the curriculum |
-| [#12](https://github.com/kartikeytripathi/kubeforge/issues/12) | **Real Cluster Mode** | Opt-in toggle per lab — provisions an isolated vCluster per session, pipes a live `kubectl` terminal (xterm.js) into the lab UI, verifier queries the real cluster instead of the simulator |
+| # | Feature | Status | Description |
+|---|---|---|---|
+| [#10](https://github.com/kartikeytripathi/kubeforge/issues/10) | **K8s Internals Mastery integration** | ✅ shipped | "Why this works →" footer on every lab; Module 2 (etcd) guide + lab + slides live; c10 diagnostic lab; Phase E syllabus specced in `docs/phase-e-syllabus.md` |
+| [#11](https://github.com/kartikeytripathi/kubeforge/issues/11) | **Next Lab button** | planned | After all objectives pass, a button appears to jump directly to the next lab without going back to the curriculum |
+| [#12](https://github.com/kartikeytripathi/kubeforge/issues/12) | **Real Cluster Mode** | planned | Opt-in toggle per lab — provisions an isolated vCluster per session, pipes a live `kubectl` terminal (xterm.js) into the lab UI, verifier queries the real cluster instead of the simulator |
 
 ---
 
@@ -175,6 +178,8 @@ kubeforge/
 │   │   └── QuizAttempt.ts        # Mongoose quiz score model (userId, tier, score, answers)
 │   ├── mongoose.ts               # MongoDB connection singleton
 │   ├── verifiers/                # Per-lab assertion functions (one file per lab)
+│   ├── lab-module-map.ts         # Static map: lab ID → K8s Internals module + guide anchor URL
+│   ├── labs.ts                   # VALID_LAB_IDS set
 │   └── progress-store.ts         # Zustand progress store (localStorage cache)
 ├── auth.ts                       # NextAuth full config (Node.js — mongoose + Resend)
 ├── auth.config.ts                # NextAuth edge config (used by middleware)
@@ -182,7 +187,16 @@ kubeforge/
 ├── content/
 │   ├── lessons/                  # MDX concept text (one per lab, ≤400 words)
 │   ├── labs/                     # JSON lab definitions (starter YAML, objectives, hints, solution)
+│   ├── lab-mapping.csv           # Maps every lab to its K8s Internals module section
 │   └── questions/                # MCQ question banks (beginner.json, intermediate.json, advanced.json)
+├── modules/
+│   └── 02-etcd-storage/          # K8s Internals Module 2 (live)
+│       ├── guide.md              # Deep-dive reference (8 sections, ~4,000 words)
+│       ├── lab.md                # 6 hands-on exercises (kind cluster + etcdctl)
+│       ├── lab.sh                # Idempotent cluster setup script
+│       └── build-slides.js       # pptxgenjs slide deck generator (15 slides)
+├── docs/
+│   └── phase-e-syllabus.md       # Phase E design spec — 10 diagnostic labs (E1–E10), one per internals module
 └── tests/
     ├── unit/                     # Vitest — simulator + verifier tests
     └── e2e/                      # Playwright — phase smoke tests
