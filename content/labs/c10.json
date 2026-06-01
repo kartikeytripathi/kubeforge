@@ -1,0 +1,21 @@
+{
+  "id": "c10",
+  "title": "Fix the slow admission webhook",
+  "difficulty": "intermediate",
+  "estimatedMinutes": 20,
+  "realWorldIncident": true,
+  "scenario": "On-call gets paged: pod creation in the `payments` namespace is timing out with `context deadline exceeded`. The SRE traces it to `payments-validator`, a ValidatingWebhookConfiguration whose webhook server occasionally takes 20–25 s to respond (cold starts + GC). The webhook has two problems:\n\n1. `timeoutSeconds: 30` — the API server waits a full 30 s before failing. Every slow webhook call blocks the admission pipeline for that entire window.\n2. No `namespaceSelector` — the webhook intercepts pods in **all** namespaces, including `kube-system`. This adds latency to every cluster admission, not just payments traffic.\n\nFix both issues: reduce `timeoutSeconds` to `5` and add a `namespaceSelector` that restricts the webhook to namespaces labelled `team: payments`.",
+  "hiddenSetup": [],
+  "starterYaml": "apiVersion: admissionregistration.k8s.io/v1\nkind: ValidatingWebhookConfiguration\nmetadata:\n  name: payments-validator\nwebhooks:\n- name: validate.payments.kubeforge.io\n  admissionReviewVersions: [\"v1\"]\n  clientConfig:\n    service:\n      name: payments-webhook\n      namespace: payments\n      path: /validate\n  rules:\n  - apiGroups: [\"apps\", \"\"]\n    apiVersions: [\"v1\"]\n    resources: [\"pods\", \"deployments\"]\n    operations: [\"CREATE\", \"UPDATE\"]\n  failurePolicy: Fail\n  timeoutSeconds: 30\n  sideEffects: None\n",
+  "objectives": [
+    { "id": "webhook-exists",    "description": "ValidatingWebhookConfiguration `payments-validator` exists" },
+    { "id": "timeout-reduced",   "description": "`timeoutSeconds` is ≤ 10" },
+    { "id": "namespace-scoped",  "description": "`namespaceSelector.matchLabels.team` is `payments`" }
+  ],
+  "hints": [
+    { "revealAfterMs": 60000,  "text": "Two fixes needed: lower `timeoutSeconds` and add `namespaceSelector` under the webhook entry (same level as `failurePolicy`)." },
+    { "revealAfterMs": 120000, "text": "`timeoutSeconds: 30` means the API server blocks for 30 s on every slow call. Kubernetes recommends ≤ 5 s for interactive admission. Setting it to `5` causes fast-fail instead of a 30 s stall." },
+    { "revealAfterMs": 180000, "text": "Add `namespaceSelector:\\n  matchLabels:\\n    team: payments` at the same indentation level as `failurePolicy`. This tells the API server to only send admission requests for namespaces that have the `team: payments` label." }
+  ],
+  "solution": "apiVersion: admissionregistration.k8s.io/v1\nkind: ValidatingWebhookConfiguration\nmetadata:\n  name: payments-validator\nwebhooks:\n- name: validate.payments.kubeforge.io\n  admissionReviewVersions: [\"v1\"]\n  clientConfig:\n    service:\n      name: payments-webhook\n      namespace: payments\n      path: /validate\n  rules:\n  - apiGroups: [\"apps\", \"\"]\n    apiVersions: [\"v1\"]\n    resources: [\"pods\", \"deployments\"]\n    operations: [\"CREATE\", \"UPDATE\"]\n  namespaceSelector:\n    matchLabels:\n      team: payments\n  failurePolicy: Fail\n  timeoutSeconds: 5\n  sideEffects: None\n"
+}
