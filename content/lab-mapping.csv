@@ -30,6 +30,7 @@ c6,Fix an ArgoCD Application hammering the GitHub API,3,Controllers & Reconcilia
 c7,Enforce no-privileged-containers with Kyverno,7,Admission Control & CEL Policy,Policy engines — OPA Kyverno and CEL,policy-engines--opa-kyverno-and-cel,How Kyverno enforces policy at admission time →
 c8,Restore a namespace from a Velero backup,6,CRI CNI CSI — The Three Interfaces,CSI — Container Storage Interface,csi--container-storage-interface,How Velero snapshots storage via CSI hooks →
 c9,Boss Lab — ArgoCD repo-server bottleneck,3,Controllers & Reconciliation,The reconcile loop pattern,the-reconcile-loop-pattern,How controller throughput affects cluster convergence →
+c10,Fix the slow admission webhook,7,Admission Control & CEL Policy,Validating admission webhooks,validating-admission-webhooks,How timeoutSeconds and namespaceSelector tune webhook admission →
 d1,Configure Karpenter NodePools for different workload types,4,Scheduler Internals & Custom Plugins,Karpenter — scheduling without the scheduler,karpenter--scheduling-without-the-scheduler,How Karpenter bypasses kube-scheduler for node provisioning →
 d2,Fix ENI exhaustion with VPC CNI prefix delegation,6,CRI CNI CSI — The Three Interfaces,CNI — Container Network Interface,cni--container-network-interface,How VPC CNI assigns IPs to pods on EKS →
 d3,Migrate from IRSA to EKS Pod Identity,1,API Request Lifecycle,Authentication — who are you?,authentication--who-are-you,How pod identity maps to AWS IAM credentials →

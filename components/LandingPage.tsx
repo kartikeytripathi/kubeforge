@@ -149,7 +149,7 @@ const FEATURES = [
       </svg>
     ),
     title: "CKA → EKS Curriculum",
-    desc: "38 labs across 4 phases. Start with vanilla Kubernetes, advance through production patterns, finish with AWS EKS.",
+    desc: "39 labs across 4 phases. Start with vanilla Kubernetes, advance through production patterns, finish with AWS EKS.",
   },
   {
     icon: (
@@ -352,7 +352,7 @@ export function LandingPage() {
           <div className="w-full lg:w-1/2 text-center lg:text-left space-y-6">
             <div className="animate-fade-in-up inline-flex items-center gap-2 rounded-full border border-teal-600/40 bg-teal-600/10 px-4 py-1.5 text-xs font-semibold text-teal-400 tracking-wider" style={{ animationDelay: "100ms" }}>
               <span className="h-1.5 w-1.5 rounded-full bg-teal-400 animate-pulse" />
-              38 LABS · 60 MCQs · PHASE A → D
+              39 LABS · 60 MCQs · PHASE A → D
             </div>
             <h1 className="animate-fade-in-up text-4xl sm:text-5xl font-bold leading-[1.1] tracking-tight lg:text-6xl" style={{ animationDelay: "200ms" }}>
               Learn Kubernetes{" "}<span className="text-teal-400">by doing.</span>

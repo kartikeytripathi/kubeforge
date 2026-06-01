@@ -209,6 +209,13 @@ export const LAB_MODULE_MAP: Record<string, ModuleLink> = {
     linkText: "How controller throughput affects cluster convergence →",
     guideUrl: url("03-controllers-reconciliation", "the-reconcile-loop-pattern"),
   },
+  c10: {
+    moduleNum: 7, moduleTitle: "Admission Control & CEL Policy",
+    section: "Validating admission webhooks",
+    anchor: "validating-admission-webhooks",
+    linkText: "How timeoutSeconds and namespaceSelector tune webhook admission →",
+    guideUrl: url("07-admission-control", "validating-admission-webhooks"),
+  },
   d1: {
     moduleNum: 4, moduleTitle: "Scheduler Internals & Custom Plugins",
     section: "Karpenter — scheduling without the scheduler",

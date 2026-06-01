@@ -28,6 +28,7 @@ import { verifyC6 } from "@/lib/verifiers/c6";
 import { verifyC7 } from "@/lib/verifiers/c7";
 import { verifyC8 } from "@/lib/verifiers/c8";
 import { verifyC9 } from "@/lib/verifiers/c9";
+import { verifyC10 } from "@/lib/verifiers/c10";
 import { verifyD1 } from "@/lib/verifiers/d1";
 import { verifyD2 } from "@/lib/verifiers/d2";
 import { verifyD3 } from "@/lib/verifiers/d3";
@@ -71,6 +72,7 @@ const VERIFIERS: Record<string, VerifierFn> = {
   c7: verifyC7,
   c8: verifyC8,
   c9: verifyC9,
+  c10: verifyC10,
   d1: verifyD1,
   d2: verifyD2,
   d3: verifyD3,

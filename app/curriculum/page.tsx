@@ -50,6 +50,7 @@ const PHASES: Phase[] = [
       { id: "C7", title: "Pod Security Standards, OPA/Kyverno", status: "available", href: "/lesson/c7" },
       { id: "C8", title: "Backup/DR with Velero", status: "available", href: "/lesson/c8" },
       { id: "C9", title: "Boss Lab — ArgoCD repo-server bottleneck", status: "available", href: "/lesson/c9", boss: true },
+      { id: "C10", title: "Fix the slow admission webhook", status: "available", href: "/lesson/c10" },
     ],
   },
   {
@@ -84,7 +85,7 @@ export default function CurriculumPage() {
       <div className="flex items-end justify-between">
         <div>
           <h1 className="text-3xl font-bold text-white">Curriculum</h1>
-          <p className="mt-1 text-gray-400">38 labs across 4 phases.</p>
+          <p className="mt-1 text-gray-400">39 labs across 4 phases.</p>
         </div>
         {totalDone > 0 && (
           <span className="text-sm text-teal-400 font-medium">{totalDone} lab{totalDone !== 1 ? "s" : ""} completed</span>
