@@ -1,0 +1,75 @@
+---
+title: "Fix the slow admission webhook"
+phase: "C"
+labId: "c10"
+---
+
+## How Admission Webhooks Work
+
+Every `kubectl apply` passes through the API server's admission pipeline before the object is persisted in etcd. Webhooks are called synchronously inside that pipeline.
+
+```
+kubectl apply
+    │
+    ▼
+API server → authn → authz → mutating admission → validating admission → etcd
+                                                         ▲
+                                              your webhook is called here
+```
+
+If a webhook is slow, **every admission call blocks** for the full timeout window before the API server moves on.
+
+## The Two Knobs That Matter
+
+### `timeoutSeconds`
+
+Controls how long the API server waits for a webhook response before either failing open or closed (depending on `failurePolicy`).
+
+```yaml
+timeoutSeconds: 30   # bad — 30 s stall on cold start / GC pause
+timeoutSeconds: 5    # good — fast-fail, SLO-friendly
+```
+
+Kubernetes recommends keeping this under **10 seconds**. The lower the value, the faster the cluster degrades gracefully when the webhook server is slow.
+
+### `namespaceSelector`
+
+By default, a webhook intercepts admissions in **all** namespaces — including `kube-system`, `kube-public`, and monitoring namespaces. This adds latency to every cluster admission, not just the traffic you care about.
+
+```yaml
+namespaceSelector:
+  matchLabels:
+    team: payments   # only namespaces labelled team=payments
+```
+
+Label the target namespace:
+
+```bash
+kubectl label namespace payments team=payments
+```
+
+## Placement in the Manifest
+
+Both fields live **inside each webhook entry**, not at the top-level object:
+
+```yaml
+webhooks:
+- name: validate.payments.kubeforge.io
+  clientConfig: { ... }
+  rules: [ ... ]
+  namespaceSelector:        # ← add here
+    matchLabels:
+      team: payments
+  failurePolicy: Fail
+  timeoutSeconds: 5         # ← lower here
+  sideEffects: None
+```
+
+## `failurePolicy` Reminder
+
+| Value | Behaviour when webhook is unreachable or times out |
+|---|---|
+| `Fail` (default) | Admission denied — request blocked |
+| `Ignore` | Admission allowed — webhook bypassed |
+
+`Fail` + a long `timeoutSeconds` = the worst combination. A slow webhook brings pod creation to a halt cluster-wide.
