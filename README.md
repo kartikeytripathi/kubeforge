@@ -151,7 +151,7 @@ kubeforge/
 │   ├── curriculum/               # Phase/lesson browser
 │   ├── progress/                 # Heatmap + readiness gauges
 │   ├── settings/                 # Keyboard shortcuts, storage info
-│   ├── sitemap.ts                # Auto-generated sitemap.xml (43 URLs)
+│   ├── sitemap.ts                # Auto-generated sitemap.xml (47 URLs)
 │   └── robots.ts                 # Auto-generated robots.txt
 ├── components/
 │   ├── LandingPage.tsx           # Animated landing page (unauthenticated)
